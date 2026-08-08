@@ -19,19 +19,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = host.startsWith("localhost") ? "http" : "https";
   return {
     metadataBase: new URL(`${protocol}://${host}`),
-    title: "Coordinatez Axis — Interactive Pergola Studio",
+    title: "Coordinatez — Motorized Pergola Model Range",
     description:
-      "Configure the Coordinatez Axis motorized pergola in an immersive real-time 3D product studio.",
+      "Compare Coordinatez Axis motorized pergola systems, then explore each model in an interactive 3D studio.",
     openGraph: {
-      title: "Coordinatez Axis — Architecture That Moves",
-      description: "An interactive 3D motorized pergola concept experience.",
+      title: "Coordinatez Axis — Find Your Structure",
+      description: "Compare the complete Coordinatez Axis range and explore every model in 3D.",
       type: "website",
       images: [{ url: "/og.png", width: 1792, height: 930, alt: "Coordinatez Axis motorized pergola at dusk" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Coordinatez Axis — Architecture That Moves",
-      description: "An interactive 3D motorized pergola concept experience.",
+      title: "Coordinatez Axis — Find Your Structure",
+      description: "Compare the complete Coordinatez Axis range and explore every model in 3D.",
       images: ["/og.png"],
     },
   };

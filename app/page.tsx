@@ -317,7 +317,7 @@ function PergolaViewer({
         for (const zSign of [-1, 1]) {
           for (const ySign of [-1, 1]) {
             for (const xSign of [-1, 1]) {
-              let x = (size.x / 2) * xSign;
+              const x = (size.x / 2) * xSign;
               let y = (size.y / 2) * ySign;
               let z = (size.z / 2) * zSign;
               if (localRotationX) {
@@ -469,7 +469,7 @@ function Toggle({
   );
 }
 
-export default function Home() {
+export function ProductStudio() {
   const [selectedSize, setSelectedSize] = useState(1);
   const [selectedFinish, setSelectedFinish] = useState(0);
   const [louversOpen, setLouversOpen] = useState(false);
@@ -800,7 +800,7 @@ export default function Home() {
       </footer>
 
       {briefOpen && (
-        <div className="brief-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setBriefOpen(false)}>
+        <div className="brief-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setBriefOpen(false)}>
           <aside className="brief-panel" role="dialog" aria-modal="true" aria-labelledby="brief-title">
             <div className="brief-header">
               <div><span>Coordinatez project studio</span><b>{sizes[selectedSize].label} · {finishes[selectedFinish].name}</b></div>
@@ -860,6 +860,356 @@ export default function Home() {
       <div className={`toast ${toast ? "is-visible" : ""}`} role="status">
         <i>✓</i><div><b>Project brief received</b><span>{finishes[selectedFinish].name} · {sizes[selectedSize].label} · {money(total)}</span></div>
       </div>
+    </div>
+  );
+}
+
+type RangeModel = {
+  tag: string;
+  name: string;
+  wind: string;
+  span: string;
+  snow: string;
+  price: string;
+  basePrice: number;
+  description: string;
+  imagePosition: string;
+  tone: "day" | "night" | "sand" | "legacy";
+};
+
+const modelRanges: { title: string; id: string; models: RangeModel[] }[] = [
+  {
+    title: "Gen 2 Motorized Pergola",
+    id: "gen-2",
+    models: [
+      {
+        tag: "Standard",
+        name: "AXIS Motorized Pergola",
+        wind: "80 MPH",
+        span: "Extended sizes",
+        snow: "20 PSF",
+        price: "From $6,890–$13,490",
+        basePrice: 6890,
+        description: "Balanced performance for most residential climates",
+        imagePosition: "0% 50%",
+        tone: "day",
+      },
+      {
+        tag: "Advanced",
+        name: "AXIS PRO Motorized Pergola",
+        wind: "135 MPH",
+        span: "Extended sizes",
+        snow: "40 PSF",
+        price: "From $9,490–$18,990",
+        basePrice: 9490,
+        description: "Reinforced for demanding year-round weather",
+        imagePosition: "50% 50%",
+        tone: "night",
+      },
+      {
+        tag: "Custom and premium",
+        name: "AXIS ONE Custom Pergola",
+        wind: "160 MPH",
+        span: "Made to measure",
+        snow: "50 PSF",
+        price: "From $12,900",
+        basePrice: 12900,
+        description: "A site-specific system shaped around your architecture",
+        imagePosition: "100% 50%",
+        tone: "sand",
+      },
+    ],
+  },
+  {
+    title: "Gen 1 Motorized Pergola",
+    id: "gen-1",
+    models: [
+      {
+        tag: "Original",
+        name: "AXIS CLASSIC Motorized Pergola",
+        wind: "90 MPH",
+        span: "Standard sizes",
+        snow: "25 PSF",
+        price: "From $5,490–$9,890",
+        basePrice: 5490,
+        description: "The proven original for composed outdoor living",
+        imagePosition: "0% 50%",
+        tone: "legacy",
+      },
+    ],
+  },
+];
+
+function MetricIcon({ type }: { type: "wind" | "span" | "snow" }) {
+  return <i className={`metric-icon metric-${type}`} aria-hidden="true"><span /></i>;
+}
+
+function RangeCard({
+  model,
+  index,
+  initial = false,
+  onOpen,
+}: {
+  model: RangeModel;
+  index: number;
+  initial?: boolean;
+  onOpen: (model: RangeModel) => void;
+}) {
+  return (
+    <article className={`range-card range-reveal${initial ? " is-visible" : ""}`} style={{ "--delay": `${index * 90}ms` } as React.CSSProperties}>
+      <div
+        className={`range-card-cover is-${model.tone}`}
+        style={{ backgroundPosition: model.imagePosition }}
+        role="img"
+        aria-label={`${model.name} installed in an architectural outdoor setting`}
+      >
+        <span className="range-image-label">COORDINATEZ / {model.tag}</span>
+      </div>
+      <div className="range-card-content">
+        <div className="range-card-inner">
+          <span className="range-tag">{model.tag}</span>
+          <h2>{model.name}</h2>
+          <div className="range-swatches" aria-label="Available finishes">
+            <i className="swatch-carbon" /><i className="swatch-cloud" /><i className="swatch-sand" />
+          </div>
+          <div className="range-metrics">
+            <span><MetricIcon type="wind" /><b>{model.wind}</b></span>
+            <span><MetricIcon type="span" /><b>{model.span}</b></span>
+            <span><MetricIcon type="snow" /><b>{model.snow}</b></span>
+          </div>
+          <strong className="range-price">{model.price}</strong>
+          <p>{model.description}</p>
+        </div>
+        <button className="range-view-button" onClick={() => onOpen(model)}>View model</button>
+      </div>
+    </article>
+  );
+}
+
+export default function Home() {
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const [selectedModel, setSelectedModel] = useState<RangeModel>(modelRanges[0].models[0]);
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [louversOpen, setLouversOpen] = useState(false);
+  const [yardVisible, setYardVisible] = useState(true);
+  const [dusk, setDusk] = useState(false);
+  const [selectedFinish, setSelectedFinish] = useState(0);
+  const [selectedSize, setSelectedSize] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [brief, setBrief] = useState<BriefForm>(emptyBrief);
+  const [submitState, setSubmitState] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [reference, setReference] = useState("");
+  const [toast, setToast] = useState(false);
+
+  const sizePremiums = [0, 900, 2400, 6600];
+  const total = selectedModel.basePrice + sizePremiums[selectedSize];
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(
+      () => setAnnouncementIndex((current) => (current + 1) % announcementSlides.length),
+      4800,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const reveal = new IntersectionObserver(
+      (entries) => entries.forEach((entry) => entry.isIntersecting && entry.target.classList.add("is-visible")),
+      { threshold: 0.12 },
+    );
+    document.querySelectorAll(".range-reveal").forEach((element) => reveal.observe(element));
+    return () => reveal.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!studioOpen && !briefOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (briefOpen) setBriefOpen(false);
+      else setStudioOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [briefOpen, studioOpen]);
+
+  const openModel = (model: RangeModel) => {
+    setSelectedModel(model);
+    setLouversOpen(false);
+    setDusk(model.tone === "night");
+    setStudioOpen(true);
+  };
+
+  const openBrief = () => {
+    setSubmitState("idle");
+    setSubmitMessage("");
+    setBriefOpen(true);
+  };
+
+  const submitBrief = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitState("sending");
+    setSubmitMessage("");
+    const apiBase = typeof __BRIEF_API_URL_B64__ === "string" ? window.atob(__BRIEF_API_URL_B64__).replace(/\/$/, "") : "";
+
+    try {
+      const response = await fetch(`${apiBase}/api/briefs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...brief,
+          configuration: {
+            product: selectedModel.name,
+            finish: finishes[selectedFinish].name,
+            size: sizes[selectedSize].label,
+            price: total,
+            louversOpen,
+            eveningLight: dusk,
+            heaters: false,
+            privacyScreen: false,
+          },
+        }),
+      });
+      const result = (await response.json()) as { error?: string; reference?: string };
+      if (!response.ok) throw new Error(result.error || "We could not send your project brief.");
+      setReference(result.reference ?? "RECEIVED");
+      setSubmitState("success");
+      setToast(true);
+      window.setTimeout(() => setToast(false), 3600);
+    } catch (error) {
+      setSubmitMessage(error instanceof Error ? error.message : "We could not send your project brief.");
+      setSubmitState("error");
+    }
+  };
+
+  return (
+    <div className="compare-site">
+      <div className="scroll-line" aria-hidden="true" />
+      <div className="announcement">
+        <div className="announcement-copy" key={announcementIndex}>
+          <span>{announcementSlides[announcementIndex].title}</span>
+          <p>{announcementSlides[announcementIndex].copy}</p>
+          <a href={announcementSlides[announcementIndex].href}>{announcementSlides[announcementIndex].action}</a>
+        </div>
+        <div className="announcement-art" aria-hidden="true"><i /><i /><i /><span>AXIS</span></div>
+        <div className="announcement-progress" aria-hidden="true" />
+      </div>
+
+      <header className="site-header compare-header">
+        <a className="brand" href="#top" aria-label="Coordinatez home">COORDINATEZ<span>®</span></a>
+        <nav className={menuOpen ? "is-open" : ""} aria-label="Main navigation">
+          <a href="#gen-2" onClick={() => setMenuOpen(false)}>Models</a>
+          <a href="#gen-1" onClick={() => setMenuOpen(false)}>Original</a>
+          <button onClick={() => { openModel(modelRanges[0].models[0]); setMenuOpen(false); }}>3D Studio</button>
+          <a href="#contact" onClick={() => setMenuOpen(false)}>Contact us</a>
+        </nav>
+        <div className="header-actions">
+          <button className="search-glyph" aria-label="Search models">⌕</button>
+          <button className="round-button" aria-label="Open project brief" onClick={openBrief}>0</button>
+          <button className="menu-button" aria-label="Toggle menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><span /><span /></button>
+        </div>
+      </header>
+
+      <main className="compare-main" id="top">
+        {modelRanges.map((range) => (
+          <section className="model-range" id={range.id} key={range.id}>
+            <div className={`range-heading range-reveal ${range.id === "gen-2" ? "is-visible" : ""}`}>
+              <h2>{range.title}</h2>
+              <span>{String(range.models.length).padStart(2, "0")} models</span>
+            </div>
+            <div className="range-scroll">
+              <div className={`range-list ${range.models.length === 1 ? "is-single" : ""}`}>
+                {range.models.map((model, index) => <RangeCard key={model.name} model={model} index={index} initial={range.id === "gen-2"} onOpen={openModel} />)}
+              </div>
+            </div>
+          </section>
+        ))}
+
+        <section className="compare-help" id="contact">
+          <div className="compare-help-copy range-reveal">
+            <span>Still deciding?</span>
+            <h2>Bring us the site.<br />We’ll find the system.</h2>
+            <p>Share your climate, footprint and architectural intent. The Coordinatez studio will recommend the right structure.</p>
+            <button onClick={openBrief}>Start a project <b>→</b></button>
+          </div>
+          <div className="compare-help-art" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /></div>
+        </section>
+
+        <section className="compare-newsletter">
+          <div><span>Coordinatez field notes</span><h2>Ideas for living outside.</h2></div>
+          <form onSubmit={(event) => event.preventDefault()}><label htmlFor="updates-email">Email address</label><input id="updates-email" type="email" placeholder="you@example.com" /><button type="submit">Subscribe →</button></form>
+        </section>
+      </main>
+
+      <footer className="compare-footer">
+        <div className="footer-brand">COORDINATEZ®</div>
+        <div><b>Products</b><a href="#gen-2">Gen 2 range</a><a href="#gen-1">Gen 1 original</a><button onClick={() => openModel(modelRanges[0].models[0])}>3D studio</button></div>
+        <div><b>Studio</b><button onClick={openBrief}>Project brief</button><a href="#contact">Contact</a><a href="#top">Return to top</a></div>
+        <div className="footer-note"><p>Precision outdoor systems shaped for light, weather and long days outside.</p><span>© 2026 Coordinatez Demo</span></div>
+      </footer>
+
+      {studioOpen && (
+        <div className="model-studio-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setStudioOpen(false)}>
+          <section className="model-studio-dialog" role="dialog" aria-modal="true" aria-labelledby="studio-model-title">
+            <button className="studio-close" onClick={() => setStudioOpen(false)} aria-label="Close 3D studio">×</button>
+            <div className="studio-visual">
+              <PergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} />
+              <div className="viewer-controls" aria-label="3D model controls">
+                <Toggle active={louversOpen} onChange={() => setLouversOpen(!louversOpen)} label="Open louvers" />
+                <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Yard visible" />
+                <Toggle active={dusk} onChange={() => setDusk(!dusk)} label="Evening light" />
+              </div>
+            </div>
+            <div className="studio-panel">
+              <span>{selectedModel.tag}</span>
+              <h2 id="studio-model-title">{selectedModel.name}</h2>
+              <p>{selectedModel.description}. Configure the key visual details, then attach them to a project request.</p>
+              <div className="studio-spec-row"><span><small>Wind</small><b>{selectedModel.wind}</b></span><span><small>Span</small><b>{selectedModel.span}</b></span><span><small>Snow</small><b>{selectedModel.snow}</b></span></div>
+              <div className="studio-option"><div><span>Finish</span><b>{finishes[selectedFinish].name}</b></div><div className="studio-finish-options">{finishes.map((finish, index) => <button key={finish.name} className={selectedFinish === index ? "is-selected" : ""} onClick={() => setSelectedFinish(index)} aria-label={`Select ${finish.name} finish`}><i style={{ background: finish.value }} /><span>{finish.name}</span></button>)}</div></div>
+              <div className="studio-option"><div><span>Footprint</span><b>{sizes[selectedSize].label}</b></div><div className="studio-size-options">{sizes.map((size, index) => <button key={size.label} className={selectedSize === index ? "is-selected" : ""} onClick={() => setSelectedSize(index)}><b>{size.label}</b><small>{size.meta}</small></button>)}</div></div>
+              <div className="studio-total"><span>Configured estimate</span><strong>{money(total)}</strong></div>
+              <button className="studio-brief-button" onClick={openBrief}>Add to project brief <b>→</b></button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {briefOpen && (
+        <div className="brief-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setBriefOpen(false)}>
+          <aside className="brief-panel" role="dialog" aria-modal="true" aria-labelledby="brief-title">
+            <div className="brief-header"><div><span>Coordinatez project studio</span><b>{selectedModel.name}</b></div><button onClick={() => setBriefOpen(false)} aria-label="Close project brief">×</button></div>
+            {submitState === "success" ? (
+              <div className="brief-success" aria-live="polite"><i>✓</i><span>Project brief received</span><h2>We have your<br />configuration.</h2><p>A studio specialist can now review your selected model and contact details.</p><div><small>Reference</small><strong>{reference}</strong></div><button onClick={() => { setBriefOpen(false); setBrief(emptyBrief); }}>Return to models →</button></div>
+            ) : (
+              <form className="brief-form" onSubmit={submitBrief}>
+                <div className="brief-intro"><span>Start your project</span><h2>Bring us<br />your outside.</h2><p>Share a few details and the complete model configuration will arrive with your request.</p></div>
+                <div className="brief-summary"><span><small>Model</small><b>{selectedModel.name.replace(" Motorized Pergola", "")}</b></span><span><small>Footprint</small><b>{sizes[selectedSize].label}</b></span><span><small>Finish</small><b>{finishes[selectedFinish].name}</b></span><span><small>Estimate</small><b>{money(total)}</b></span></div>
+                <div className="form-grid">
+                  <label><span>Name *</span><input required minLength={2} maxLength={100} autoComplete="name" value={brief.name} onChange={(event) => setBrief({ ...brief, name: event.target.value })} placeholder="Your name" /></label>
+                  <label><span>Email *</span><input required type="email" maxLength={180} autoComplete="email" value={brief.email} onChange={(event) => setBrief({ ...brief, email: event.target.value })} placeholder="you@example.com" /></label>
+                  <label><span>Phone</span><input type="tel" maxLength={40} autoComplete="tel" value={brief.phone} onChange={(event) => setBrief({ ...brief, phone: event.target.value })} placeholder="(555) 000-0000" /></label>
+                  <label><span>Project ZIP</span><input maxLength={20} autoComplete="postal-code" value={brief.postalCode} onChange={(event) => setBrief({ ...brief, postalCode: event.target.value })} placeholder="00000" /></label>
+                  <label className="full"><span>Tell us about the space</span><textarea maxLength={2500} rows={4} value={brief.notes} onChange={(event) => setBrief({ ...brief, notes: event.target.value })} placeholder="Dimensions, surface, timing, or anything we should know…" /></label>
+                  <label className="form-trap" aria-hidden="true"><span>Website</span><input tabIndex={-1} autoComplete="off" value={brief.companyWebsite} onChange={(event) => setBrief({ ...brief, companyWebsite: event.target.value })} /></label>
+                </div>
+                <label className="brief-consent"><input type="checkbox" required checked={brief.consent} onChange={(event) => setBrief({ ...brief, consent: event.target.checked })} /><span /><p>I agree that Coordinatez may contact me about this project request.</p></label>
+                {submitState === "error" && <p className="brief-error" role="alert">{submitMessage}</p>}
+                <button className="brief-submit" type="submit" disabled={submitState === "sending"}><span>{submitState === "sending" ? "Sending project…" : "Send project brief"}</span><b>→</b></button>
+                <p className="brief-privacy">Your details are used only to respond to this project request.</p>
+              </form>
+            )}
+          </aside>
+        </div>
+      )}
+
+      <div className={`toast ${toast ? "is-visible" : ""}`} role="status"><i>✓</i><div><b>Project brief received</b><span>{selectedModel.name} · {money(total)}</span></div></div>
     </div>
   );
 }
