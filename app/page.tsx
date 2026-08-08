@@ -52,13 +52,13 @@ const announcementSlides = [
     title: "Summer studio",
     copy: "Complimentary delivery on every Axis configuration.",
     action: "Explore the system →",
-    href: "#configure",
+    href: "#gen-2",
   },
   {
     title: "Find your structure",
     copy: "Match the footprint, finish and climate package to your space.",
     action: "Configure now →",
-    href: "#configure",
+    href: "#gen-2",
   },
   {
     title: "Live design review",
@@ -940,6 +940,8 @@ const modelRanges: { title: string; id: string; models: RangeModel[] }[] = [
   },
 ];
 
+const allModels = modelRanges.flatMap((range) => range.models);
+
 function MetricIcon({ type }: { type: "wind" | "span" | "snow" }) {
   return <i className={`metric-icon metric-${type}`} aria-hidden="true"><span /></i>;
 }
@@ -1002,9 +1004,20 @@ export default function Home() {
   const [submitMessage, setSubmitMessage] = useState("");
   const [reference, setReference] = useState("");
   const [toast, setToast] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [trayCount, setTrayCount] = useState(0);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterState, setNewsletterState] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [newsletterMessage, setNewsletterMessage] = useState("");
 
   const sizePremiums = [0, 900, 2400, 6600];
   const total = selectedModel.basePrice + sizePremiums[selectedSize];
+  const filteredModels = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return allModels;
+    return allModels.filter((model) => [model.name, model.tag, model.wind, model.span, model.snow, model.description].some((value) => value.toLowerCase().includes(query)));
+  }, [searchQuery]);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -1025,12 +1038,13 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!studioOpen && !briefOpen) return;
+    if (!studioOpen && !briefOpen && !searchOpen) return;
     const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (briefOpen) setBriefOpen(false);
       else setStudioOpen(false);
+      if (searchOpen) setSearchOpen(false);
     };
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", closeOnEscape);
@@ -1038,7 +1052,7 @@ export default function Home() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [briefOpen, studioOpen]);
+  }, [briefOpen, searchOpen, studioOpen]);
 
   const openModel = (model: RangeModel) => {
     setSelectedModel(model);
@@ -1051,6 +1065,40 @@ export default function Home() {
     setSubmitState("idle");
     setSubmitMessage("");
     setBriefOpen(true);
+  };
+
+  const addModelToBrief = () => {
+    setTrayCount(1);
+    openBrief();
+  };
+
+  const moveHeroLight = (event: ReactPointerEvent<HTMLElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty("--pointer-x", `${((event.clientX - bounds.left) / bounds.width) * 100}%`);
+    event.currentTarget.style.setProperty("--pointer-y", `${((event.clientY - bounds.top) / bounds.height) * 100}%`);
+  };
+
+  const submitNewsletter = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setNewsletterState("sending");
+    setNewsletterMessage("");
+    const apiBase = typeof __BRIEF_API_URL_B64__ === "string" ? window.atob(__BRIEF_API_URL_B64__).replace(/\/$/, "") : "";
+
+    try {
+      const response = await fetch(`${apiBase}/api/subscribers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newsletterEmail, companyWebsite: "" }),
+      });
+      const result = (await response.json()) as { error?: string; alreadySubscribed?: boolean };
+      if (!response.ok) throw new Error(result.error || "We could not save your email.");
+      setNewsletterState("success");
+      setNewsletterMessage(result.alreadySubscribed ? "You’re already on the list." : "You’re on the list. Watch your inbox.");
+      setNewsletterEmail("");
+    } catch (error) {
+      setNewsletterState("error");
+      setNewsletterMessage(error instanceof Error ? error.message : "We could not save your email.");
+    }
   };
 
   const submitBrief = async (event: FormEvent<HTMLFormElement>) => {
@@ -1081,6 +1129,7 @@ export default function Home() {
       if (!response.ok) throw new Error(result.error || "We could not send your project brief.");
       setReference(result.reference ?? "RECEIVED");
       setSubmitState("success");
+      setTrayCount(0);
       setToast(true);
       window.setTimeout(() => setToast(false), 3600);
     } catch (error) {
@@ -1111,13 +1160,32 @@ export default function Home() {
           <a href="#contact" onClick={() => setMenuOpen(false)}>Contact us</a>
         </nav>
         <div className="header-actions">
-          <button className="search-glyph" aria-label="Search models">⌕</button>
-          <button className="round-button" aria-label="Open project brief" onClick={openBrief}>0</button>
+          <button className="search-glyph" aria-label="Search models" onClick={() => setSearchOpen(true)}>⌕</button>
+          <button className={`round-button ${trayCount ? "has-item" : ""}`} aria-label={`Open project brief, ${trayCount} selected model${trayCount === 1 ? "" : "s"}`} onClick={openBrief}>{trayCount}</button>
           <button className="menu-button" aria-label="Toggle menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><span /><span /></button>
         </div>
       </header>
 
       <main className="compare-main" id="top">
+        <section className="compare-hero" onPointerMove={moveHeroLight}>
+          <div className="hero-ambient" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
+          <div className="hero-copy">
+            <div className="hero-status"><i /> Interactive model range · Four systems online</div>
+            <h1>Shape the light.<br /><em>Own the outside.</em></h1>
+            <p>Explore every Coordinatez pergola against a living architectural backdrop, then configure the structure in real time.</p>
+            <div className="hero-actions">
+              <button onClick={() => document.getElementById("gen-2")?.scrollIntoView({ behavior: "smooth" })}>Explore models <b>↓</b></button>
+              <button onClick={() => openModel(modelRanges[0].models[1])}>Launch 3D studio <b>↗</b></button>
+            </div>
+          </div>
+          <div className="hero-data" aria-label="System range summary">
+            <span><small>Range</small><b>04 systems</b></span>
+            <span><small>Wind engineering</small><b>Up to 160 MPH</b></span>
+            <span><small>Control</small><b>Motorized louvers</b></span>
+          </div>
+          <div className="hero-scroll" aria-hidden="true"><span>Scroll to compare</span><i /></div>
+        </section>
+
         {modelRanges.map((range) => (
           <section className="model-range" id={range.id} key={range.id}>
             <div className={`range-heading range-reveal ${range.id === "gen-2" ? "is-visible" : ""}`}>
@@ -1144,7 +1212,12 @@ export default function Home() {
 
         <section className="compare-newsletter">
           <div><span>Coordinatez field notes</span><h2>Ideas for living outside.</h2></div>
-          <form onSubmit={(event) => event.preventDefault()}><label htmlFor="updates-email">Email address</label><input id="updates-email" type="email" placeholder="you@example.com" /><button type="submit">Subscribe →</button></form>
+          <form onSubmit={submitNewsletter}>
+            <label htmlFor="updates-email">Email address</label>
+            <input id="updates-email" required type="email" maxLength={180} autoComplete="email" value={newsletterEmail} onChange={(event) => setNewsletterEmail(event.target.value)} placeholder="you@example.com" />
+            <button type="submit" disabled={newsletterState === "sending"}>{newsletterState === "sending" ? "Joining…" : "Subscribe →"}</button>
+            <p className={`newsletter-status is-${newsletterState}`} aria-live="polite">{newsletterMessage}</p>
+          </form>
         </section>
       </main>
 
@@ -1154,6 +1227,24 @@ export default function Home() {
         <div><b>Studio</b><button onClick={openBrief}>Project brief</button><a href="#contact">Contact</a><a href="#top">Return to top</a></div>
         <div className="footer-note"><p>Precision outdoor systems shaped for light, weather and long days outside.</p><span>© 2026 Coordinatez Demo</span></div>
       </footer>
+
+      {searchOpen && (
+        <div className="model-search-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSearchOpen(false)}>
+          <section className="model-search-dialog" role="dialog" aria-modal="true" aria-labelledby="model-search-title">
+            <div className="model-search-head"><div><span>Coordinatez model finder</span><h2 id="model-search-title">Find your system.</h2></div><button onClick={() => setSearchOpen(false)} aria-label="Close model search">×</button></div>
+            <label className="model-search-field"><span>Search by model, climate or performance</span><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Try “high wind”, “custom”, or “snow”…" /><i>⌕</i></label>
+            <div className="model-search-results" aria-live="polite">
+              {filteredModels.map((model) => (
+                <button key={model.name} onClick={() => { setSearchOpen(false); openModel(model); }}>
+                  <i className={`search-model-image is-${model.tone}`} style={{ backgroundPosition: model.imagePosition }} />
+                  <span><small>{model.tag}</small><b>{model.name}</b><em>{model.wind} · {model.snow}</em></span><strong>Explore ↗</strong>
+                </button>
+              ))}
+              {filteredModels.length === 0 && <p>No model matches that search. Try a rating, finish or model name.</p>}
+            </div>
+          </section>
+        </div>
+      )}
 
       {studioOpen && (
         <div className="model-studio-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setStudioOpen(false)}>
@@ -1175,7 +1266,7 @@ export default function Home() {
               <div className="studio-option"><div><span>Finish</span><b>{finishes[selectedFinish].name}</b></div><div className="studio-finish-options">{finishes.map((finish, index) => <button key={finish.name} className={selectedFinish === index ? "is-selected" : ""} onClick={() => setSelectedFinish(index)} aria-label={`Select ${finish.name} finish`}><i style={{ background: finish.value }} /><span>{finish.name}</span></button>)}</div></div>
               <div className="studio-option"><div><span>Footprint</span><b>{sizes[selectedSize].label}</b></div><div className="studio-size-options">{sizes.map((size, index) => <button key={size.label} className={selectedSize === index ? "is-selected" : ""} onClick={() => setSelectedSize(index)}><b>{size.label}</b><small>{size.meta}</small></button>)}</div></div>
               <div className="studio-total"><span>Configured estimate</span><strong>{money(total)}</strong></div>
-              <button className="studio-brief-button" onClick={openBrief}>Add to project brief <b>→</b></button>
+              <button className="studio-brief-button" onClick={addModelToBrief}>Add to project brief <b>→</b></button>
             </div>
           </section>
         </div>

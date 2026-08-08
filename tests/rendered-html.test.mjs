@@ -32,17 +32,21 @@ test("server-renders the Coordinatez model comparison experience", async () => {
   assert.match(html, /COORDINATEZ/);
   assert.match(html, /Gen 2 Motorized Pergola/);
   assert.match(html, /Gen 1 Motorized Pergola/);
+  assert.match(html, /Shape the light/);
+  assert.match(html, /Interactive model range/);
   assert.match(html, /AXIS PRO Motorized Pergola/);
   assert.match(html, /View model/);
   assert.match(html, /Start a project/);
   assert.equal((html.match(/class="range-card range-reveal(?: is-visible)?"/g) ?? []).length, 4);
 });
 
-test("ships the comparison imagery and interactive studio hooks", async () => {
-  const [page, css, layout] = await Promise.all([
+test("ships the comparison imagery and full-stack interaction hooks", async () => {
+  const [page, css, layout, subscriberRoute, migration] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/subscribers/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0001_graceful_madame_masque.sql", import.meta.url), "utf8"),
   ]);
 
   await access(new URL("../public/models-triptych.jpg", import.meta.url));
@@ -50,8 +54,14 @@ test("ships the comparison imagery and interactive studio hooks", async () => {
   assert.match(page, /model-studio-dialog/);
   assert.match(page, /IntersectionObserver/);
   assert.match(page, /\/api\/briefs/);
+  assert.match(page, /\/api\/subscribers/);
+  assert.match(page, /model-search-dialog/);
   assert.match(css, /models-triptych\.jpg/);
+  assert.match(css, /url\("\/og\.png"\)/);
+  assert.match(css, /hero-louver/);
   assert.match(css, /scroll-snap-type:\s*x mandatory/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.match(layout, /Motorized Pergola Model Range/);
+  assert.match(layout, /Interactive Outdoor Systems/);
+  assert.match(subscriberRoute, /newsletterSubscribers/);
+  assert.match(migration, /CREATE TABLE `newsletter_subscribers`/);
 });

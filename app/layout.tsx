@@ -19,9 +19,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = host.startsWith("localhost") ? "http" : "https";
   return {
     metadataBase: new URL(`${protocol}://${host}`),
-    title: "Coordinatez — Motorized Pergola Model Range",
+    title: "Coordinatez — Interactive Outdoor Systems",
     description:
-      "Compare Coordinatez Axis motorized pergola systems, then explore each model in an interactive 3D studio.",
+      "Explore the Coordinatez Axis range against a living architectural backdrop, configure every model in 3D, and start a project online.",
     openGraph: {
       title: "Coordinatez Axis — Find Your Structure",
       description: "Compare the complete Coordinatez Axis range and explore every model in 3D.",
