@@ -2,9 +2,12 @@
 
 An immersive product experience for the Coordinatez Axis motorized pergola.
 
-## Live demo
+## Live full-stack demo
 
-[Open the interactive 3D studio](https://parth-oza.github.io/coordinatez-axis-demo/)
+[Open the interactive Coordinatez model studio](https://coordinatez-axis-demo.ozaparth055.workers.dev/)
+
+The GitHub Pages mirror remains available at
+[parth-oza.github.io/coordinatez-axis-demo](https://parth-oza.github.io/coordinatez-axis-demo/).
 
 ## Experience
 
