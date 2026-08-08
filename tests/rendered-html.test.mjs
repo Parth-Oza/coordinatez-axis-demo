@@ -58,6 +58,9 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /RoundedBoxGeometry/);
   assert.match(page, /photoBackdrop/);
   assert.match(page, /minAzimuthAngle/);
+  assert.match(page, /footprintProfiles/);
+  assert.match(page, /footprint\.posts === 6/);
+  assert.match(page, /contactShadowMaterial/);
   assert.match(page, /model-studio-dialog/);
   assert.match(page, /IntersectionObserver/);
   assert.match(page, /\/api\/briefs/);
