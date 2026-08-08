@@ -559,6 +559,9 @@ function RealPergolaViewer({
     controls.maxDistance = 23;
     controls.minPolarAngle = 0.42;
     controls.maxPolarAngle = 1.43;
+    const initialAzimuth = Math.atan2(10.5, 12.8);
+    controls.minAzimuthAngle = initialAzimuth - 0.62;
+    controls.maxAzimuthAngle = initialAzimuth + 0.62;
     controls.rotateSpeed = 0.62;
     controls.zoomSpeed = 0.72;
     controls.target.set(0, 2.18, 0);
@@ -596,6 +599,24 @@ function RealPergolaViewer({
     patioTexture.wrapT = THREE.ClampToEdgeWrapping;
     patioTexture.repeat.set(1, 0.88);
     patioTexture.updateMatrix();
+    const photoBackdropMaterial = new THREE.MeshBasicMaterial({
+      map: patioTexture,
+      color: "#ffffff",
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      fog: false,
+      toneMapped: false,
+    });
+    const photoBackdrop = new THREE.Mesh(new THREE.PlaneGeometry(150, 84), photoBackdropMaterial);
+    const backdropDistance = 31;
+    photoBackdrop.position.set(
+      -Math.sin(initialAzimuth) * backdropDistance,
+      2.65,
+      -Math.cos(initialAzimuth) * backdropDistance,
+    );
+    photoBackdrop.rotation.y = initialAzimuth;
+    photoBackdrop.renderOrder = -100;
+    scene.add(photoBackdrop);
 
     const woodCanvas = document.createElement("canvas");
     woodCanvas.width = 1024;
@@ -895,9 +916,11 @@ function RealPergolaViewer({
       }
 
       const duskMix = state.dusk ? 1 : 0;
-      scene.background = state.yardVisible ? (patioTexture.image ? patioTexture : (state.dusk ? duskSky : daySky)) : studioSky;
+      scene.background = state.yardVisible ? (state.dusk ? duskSky : daySky) : studioSky;
       scene.backgroundIntensity = THREE.MathUtils.lerp(scene.backgroundIntensity, state.dusk ? 0.56 : 1, 0.06);
       environment.visible = false;
+      photoBackdrop.visible = state.yardVisible;
+      photoBackdropMaterial.color.lerp(new THREE.Color(state.dusk ? "#70685c" : "#ffffff"), 0.065);
       deck.material = state.yardVisible ? patioShadowMaterial : deckMaterial;
       if (scene.fog) scene.fog.color.lerp(new THREE.Color(state.dusk ? "#23303a" : "#dfe8e1"), 0.08);
       renderer.toneMappingExposure = THREE.MathUtils.lerp(renderer.toneMappingExposure, state.dusk ? 0.88 : 1.18, 0.06);

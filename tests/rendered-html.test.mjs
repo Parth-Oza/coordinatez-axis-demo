@@ -56,6 +56,8 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /THREE\.WebGLRenderer/);
   assert.match(page, /OrbitControls/);
   assert.match(page, /RoundedBoxGeometry/);
+  assert.match(page, /photoBackdrop/);
+  assert.match(page, /minAzimuthAngle/);
   assert.match(page, /model-studio-dialog/);
   assert.match(page, /IntersectionObserver/);
   assert.match(page, /\/api\/briefs/);
