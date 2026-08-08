@@ -180,16 +180,16 @@ function PergolaViewer({
           sky.addColorStop(0.64, "#58606a");
           sky.addColorStop(1, "#a07a5f");
         } else {
-          sky.addColorStop(0, "#f8f8f5");
-          sky.addColorStop(0.62, "#ecefeb");
-          sky.addColorStop(1, "#d9d9d2");
+          sky.addColorStop(0, "#ffffff");
+          sky.addColorStop(0.62, "#edf2ee");
+          sky.addColorStop(1, "#ccd9d1");
         }
         context.fillStyle = sky;
         context.fillRect(0, 0, width, horizon);
 
-        context.fillStyle = dusk ? "#343b3e" : "#858883";
+        context.fillStyle = dusk ? "#263438" : "#34473d";
         context.fillRect(0, height * 0.43, width, height * 0.22);
-        context.fillStyle = dusk ? "#20282a" : "#4f5551";
+        context.fillStyle = dusk ? "#111b1e" : "#101713";
         context.fillRect(0, height * 0.61, width, height * 0.018);
         context.fillStyle = dusk ? "#68706f" : "#d6dad6";
         context.fillRect(0, height * 0.629, width, height * 0.035);
@@ -220,8 +220,8 @@ function PergolaViewer({
         const drawTree = (x: number, y: number, scale: number) => {
           context.save();
           context.translate(x + parallax * scale * 0.2, y);
-          context.strokeStyle = dusk ? "rgba(15,25,25,.88)" : "rgba(58,66,61,.72)";
-          context.fillStyle = dusk ? "rgba(23,39,35,.82)" : "rgba(99,112,101,.68)";
+          context.strokeStyle = dusk ? "rgba(15,25,25,.88)" : "rgba(18,38,29,.86)";
+          context.fillStyle = dusk ? "rgba(23,39,35,.82)" : "rgba(39,70,54,.78)";
           context.lineWidth = Math.max(1, scale * 2.2);
           context.beginPath();
           context.moveTo(0, 0);
@@ -243,16 +243,22 @@ function PergolaViewer({
         drawTree(width * 0.93, height * 0.58, 0.82);
 
         const deck = context.createLinearGradient(0, horizon, 0, height);
-        deck.addColorStop(0, dusk ? "#594d42" : "#a98d6c");
-        deck.addColorStop(1, dusk ? "#2e2925" : "#80664d");
+        deck.addColorStop(0, dusk ? "#594d42" : "#c7aa85");
+        deck.addColorStop(1, dusk ? "#2e2925" : "#876247");
         context.fillStyle = deck;
         context.fillRect(0, horizon, width, height - horizon);
         const lightSweep = context.createLinearGradient(width * 0.05 + parallax, horizon, width * 0.76 + parallax, height);
         lightSweep.addColorStop(0, "rgba(255,255,255,0)");
-        lightSweep.addColorStop(0.5, dusk ? "rgba(255,177,82,.08)" : "rgba(255,244,210,.2)");
+        lightSweep.addColorStop(0.5, dusk ? "rgba(255,177,82,.12)" : "rgba(255,246,215,.3)");
         lightSweep.addColorStop(1, "rgba(255,255,255,0)");
         context.fillStyle = lightSweep;
         context.fillRect(0, horizon, width, height - horizon);
+
+        const contrastGlow = context.createRadialGradient(width * 0.56, height * 0.44, 12, width * 0.56, height * 0.44, width * 0.42);
+        contrastGlow.addColorStop(0, dusk ? "rgba(242,172,94,.13)" : "rgba(201,255,97,.2)");
+        contrastGlow.addColorStop(1, "rgba(201,255,97,0)");
+        context.fillStyle = contrastGlow;
+        context.fillRect(0, 0, width, height);
       } else {
         const studio = context.createLinearGradient(0, 0, 0, height);
         studio.addColorStop(0, dusk ? "#242a2a" : "#ffffff");
@@ -282,7 +288,7 @@ function PergolaViewer({
       const cp = Math.cos(pitch);
       const sp = Math.sin(pitch);
       const focal = Math.max(530, width * 0.95);
-      const scaleBase = Math.min(width / 560, height / 430) * 0.88;
+      const scaleBase = Math.min(width / 560, height / 430) * 0.78;
 
       const project = (point: Vec3) => {
         const x1 = point.x * cy - point.y * sy;
@@ -302,7 +308,7 @@ function PergolaViewer({
       context.beginPath();
       context.rect(0, height * .52, width, height * .48);
       context.clip();
-      context.strokeStyle = dusk ? "rgba(255,255,255,.08)" : "rgba(62,41,25,.19)";
+      context.strokeStyle = dusk ? "rgba(255,255,255,.08)" : "rgba(53,34,22,.34)";
       context.lineWidth = .75;
       for (let boardY = -260; boardY <= 260; boardY += 14) {
         const start = project({ x: -440, y: boardY, z: .3 });
@@ -370,13 +376,14 @@ function PergolaViewer({
 
       const postZ = 110;
       const postAnchors = [-186, 186].flatMap((x) => [-103, 103].map((y) => ({ x, y })));
-      const anchorBolts: Vec3[] = [];
       for (const { x, y } of postAnchors) {
         addBox({ x, y, z: 3 }, { x: 34, y: 34, z: 6 }, shade(finish, -8));
         addBox({ x, y, z: 8 }, { x: 24, y: 24, z: 10 }, shade(finish, 4));
         addBox({ x, y, z: postZ }, { x: 18, y: 18, z: 220 }, finish);
         for (const boltX of [-11, 11]) {
-          for (const boltY of [-11, 11]) anchorBolts.push({ x: x + boltX, y: y + boltY, z: 6.2 });
+          for (const boltY of [-11, 11]) {
+            addBox({ x: x + boltX, y: y + boltY, z: 6.6 }, { x: 3.4, y: 3.4, z: 1.2 }, dusk ? "#060908" : "#111713");
+          }
         }
       }
       addBox({ x: 0, y: -103, z: 222 }, { x: 390, y: 22, z: 26 }, finish);
@@ -404,18 +411,6 @@ function PergolaViewer({
         context.fill();
         context.strokeStyle = dusk ? "rgba(255,255,255,.035)" : "rgba(23,29,27,.08)";
         context.lineWidth = 0.55;
-        context.stroke();
-      }
-
-      for (const bolt of anchorBolts) {
-        const point = project(bolt);
-        const radius = Math.max(1.15, scaleBase * 1.55);
-        context.beginPath();
-        context.arc(point.x, point.y, radius, 0, Math.PI * 2);
-        context.fillStyle = dusk ? "#121716" : "#242a28";
-        context.fill();
-        context.strokeStyle = dusk ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.5)";
-        context.lineWidth = .65;
         context.stroke();
       }
 
@@ -454,7 +449,7 @@ function PergolaViewer({
     const dx = event.clientX - lastRef.current.x;
     const dy = event.clientY - lastRef.current.y;
     yawRef.current += dx * 0.008;
-    pitchRef.current = Math.max(0.36, Math.min(1.05, pitchRef.current + dy * 0.004));
+    pitchRef.current = Math.max(0.36, Math.min(0.94, pitchRef.current + dy * 0.004));
     lastRef.current = { x: event.clientX, y: event.clientY };
   };
 
@@ -1092,7 +1087,7 @@ export default function Home() {
   const openModel = (model: RangeModel) => {
     setSelectedModel(model);
     setLouversOpen(false);
-    setDusk(model.tone === "night");
+    setDusk(false);
     setStudioOpen(true);
   };
 
