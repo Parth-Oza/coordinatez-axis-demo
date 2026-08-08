@@ -306,6 +306,43 @@ function PergolaViewer({
         };
       };
 
+      const deckCorners = [
+        { x: -265, y: -165, z: 0 },
+        { x: 265, y: -165, z: 0 },
+        { x: 265, y: 165, z: 0 },
+        { x: -265, y: 165, z: 0 },
+      ].map(project);
+      const deckBack = project({ x: 0, y: 165, z: 0 });
+      const deckFront = project({ x: 0, y: -165, z: 0 });
+      const deckFinish = context.createLinearGradient(0, deckBack.y, 0, deckFront.y);
+      deckFinish.addColorStop(0, dusk ? "#62564b" : "#9b7857");
+      deckFinish.addColorStop(1, dusk ? "#403a35" : "#bd9870");
+      context.beginPath();
+      context.moveTo(deckCorners[0].x, deckCorners[0].y);
+      for (let index = 1; index < deckCorners.length; index += 1) context.lineTo(deckCorners[index].x, deckCorners[index].y);
+      context.closePath();
+      context.fillStyle = deckFinish;
+      context.fill();
+      context.strokeStyle = dusk ? "rgba(255,255,255,.08)" : "rgba(62,41,25,.19)";
+      context.lineWidth = .75;
+      for (let boardY = -158; boardY <= 158; boardY += 14) {
+        const start = project({ x: -265, y: boardY, z: .3 });
+        const end = project({ x: 265, y: boardY, z: .3 });
+        context.beginPath();
+        context.moveTo(start.x, start.y);
+        context.lineTo(end.x, end.y);
+        context.stroke();
+      }
+      context.strokeStyle = dusk ? "rgba(255,255,255,.045)" : "rgba(255,241,220,.2)";
+      for (let seamX = -200; seamX <= 200; seamX += 80) {
+        const start = project({ x: seamX, y: -165, z: .35 });
+        const end = project({ x: seamX, y: 165, z: .35 });
+        context.beginPath();
+        context.moveTo(start.x, start.y);
+        context.lineTo(end.x, end.y);
+        context.stroke();
+      }
+
       const addBox = (
         center: Vec3,
         size: Vec3,
