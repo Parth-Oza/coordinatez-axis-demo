@@ -45,12 +45,21 @@ a { color: inherit; text-decoration: none; }
 
 .product-section { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(420px, .8fr); border-bottom: 1px solid var(--line); }
 .visual-column { position: sticky; top: 82px; align-self: start; min-height: calc(100vh - 82px); background: #e9e9e4; border-right: 1px solid var(--line); }
-.viewer-shell { position: relative; height: calc(100vh - 160px); min-height: 610px; overflow: hidden; }
+.viewer-shell { position: relative; height: calc(100vh - 160px); min-height: 610px; overflow: hidden; isolation: isolate; background: linear-gradient(160deg, #e8ece8 0%, #d8d5cc 62%, #beb19d 100%); }
+.viewer-environment { position: absolute; z-index: 0; inset: -4%; opacity: 0; background: url("/coordinatez-patio-environment.jpg") center center / cover no-repeat; filter: saturate(.9) contrast(.98); transform: scale(1.08) translate3d(-.8%, -.35%, 0); transition: opacity .8s ease, filter 1.1s ease, transform 1.1s cubic-bezier(.2,.8,.2,1); animation: environment-drift 18s ease-in-out infinite alternate; will-change: transform, filter; }
+.viewer-environment::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 83% 18%, rgba(255,225,162,.36), transparent 28%), linear-gradient(180deg, rgba(240,247,247,.03), rgba(31,40,35,.08)); opacity: .72; mix-blend-mode: screen; animation: environment-light 10s ease-in-out infinite alternate; transition: opacity 1s ease, background 1s ease; }
+.viewer-environment::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,18,27,.04), rgba(10,15,14,.18)); opacity: .18; transition: opacity 1s ease, background 1s ease; }
+.viewer-environment.is-visible { opacity: 1; }
+.viewer-environment.is-dusk { filter: brightness(.4) saturate(.78) contrast(1.08) hue-rotate(8deg); transform: scale(1.1) translate3d(-1.2%, -.7%, 0); }
+.viewer-environment.is-dusk::before { opacity: .9; background: radial-gradient(circle at 76% 21%, rgba(255,177,81,.3), transparent 25%), radial-gradient(ellipse at 50% 100%, rgba(255,185,86,.16), transparent 45%); mix-blend-mode: screen; }
+.viewer-environment.is-dusk::after { opacity: 1; background: linear-gradient(180deg, rgba(3,19,38,.56), rgba(20,27,29,.34) 48%, rgba(10,15,14,.58)); }
+@keyframes environment-drift { from { translate: -.35% 0; } to { translate: .65% -.45%; } }
+@keyframes environment-light { from { transform: translate3d(-2%, 1%, 0) scale(.96); opacity: .48; } to { transform: translate3d(2%, -1%, 0) scale(1.05); opacity: .86; } }
 .viewer-topline { position: absolute; z-index: 4; top: 24px; left: 28px; right: 28px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
 .viewer-topline span { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .viewer-topline i { width: 7px; height: 7px; border-radius: 50%; background: #39b873; box-shadow: 0 0 0 4px rgba(57,184,115,.13); }
 .viewer-topline button { border: 0; padding: 0; background: none; cursor: pointer; text-transform: uppercase; font-size: 10px; letter-spacing: .07em; border-bottom: 1px solid rgba(0,0,0,.3); }
-.product-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.product-canvas { position: relative; z-index: 2; display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .product-canvas:active { cursor: grabbing; }
 .viewer-badge { position: absolute; right: 25px; bottom: 24px; padding: 9px 12px; color: #edf4ee; background: rgba(16,20,18,.78); border: 1px solid rgba(255,255,255,.18); border-radius: 100px; backdrop-filter: blur(8px); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .viewer-controls { min-height: 78px; display: flex; align-items: center; justify-content: center; gap: clamp(20px, 3vw, 44px); padding: 16px 22px; background: #deded8; border-top: 1px solid var(--line); }
@@ -274,4 +283,5 @@ footer > div:not(.footer-brand) { display:flex;flex-direction:column;align-items
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .reveal { opacity: 1; transform: none; }
+  .viewer-environment { animation: none; }
 }

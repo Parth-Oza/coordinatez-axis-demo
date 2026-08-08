@@ -143,46 +143,15 @@ function PergolaViewer({
       const targetAngle = louversOpen ? 1.1 : 0.08;
       bladeAngleRef.current += (targetAngle - bladeAngleRef.current) * Math.min(0.14, elapsed * 0.0045);
 
-      const sky = context.createLinearGradient(0, 0, 0, height);
-      if (dusk) {
-        sky.addColorStop(0, "#23272a");
-        sky.addColorStop(0.52, "#595952");
-        sky.addColorStop(1, "#a58d70");
-      } else {
-        sky.addColorStop(0, "#edf1ef");
-        sky.addColorStop(0.58, "#f4f2ec");
-        sky.addColorStop(1, "#d7d0c2");
+      context.clearRect(0, 0, width, height);
+      if (!yardVisible) {
+        const studio = context.createLinearGradient(0, 0, 0, height);
+        studio.addColorStop(0, dusk ? "#242a2a" : "#ecefeb");
+        studio.addColorStop(0.58, dusk ? "#3d413e" : "#e2e0d9");
+        studio.addColorStop(1, dusk ? "#171b1a" : "#c7bba7");
+        context.fillStyle = studio;
+        context.fillRect(0, 0, width, height);
       }
-      context.fillStyle = sky;
-      context.fillRect(0, 0, width, height);
-
-      if (yardVisible) {
-        context.globalAlpha = dusk ? 0.7 : 0.82;
-        context.fillStyle = dusk ? "#353b39" : "#bec8c0";
-        context.beginPath();
-        context.moveTo(0, height * 0.53);
-        context.bezierCurveTo(width * 0.18, height * 0.41, width * 0.32, height * 0.54, width * 0.5, height * 0.44);
-        context.bezierCurveTo(width * 0.7, height * 0.34, width * 0.84, height * 0.5, width, height * 0.39);
-        context.lineTo(width, height);
-        context.lineTo(0, height);
-        context.closePath();
-        context.fill();
-        context.fillStyle = dusk ? "#3f4541" : "#aeb9af";
-        for (let i = 0; i < 9; i += 1) {
-          const x = width * (0.04 + i * 0.125);
-          const y = height * (0.46 + (i % 3) * 0.02);
-          context.beginPath();
-          context.arc(x, y, height * (0.08 + (i % 2) * 0.025), 0, Math.PI * 2);
-          context.fill();
-        }
-        context.globalAlpha = 1;
-      }
-
-      const floorGradient = context.createLinearGradient(0, height * 0.58, 0, height);
-      floorGradient.addColorStop(0, dusk ? "rgba(28,31,30,.1)" : "rgba(255,255,255,.05)");
-      floorGradient.addColorStop(1, dusk ? "#171b1a" : "#c5b9a5");
-      context.fillStyle = floorGradient;
-      context.fillRect(0, height * 0.58, width, height * 0.42);
 
       context.save();
       context.translate(width / 2, height * 0.72);
@@ -265,12 +234,6 @@ function PergolaViewer({
         }
       };
 
-      addBox({ x: 0, y: 0, z: -7 }, { x: 470, y: 310, z: 12 }, dusk ? "#665b4c" : "#aa9271");
-
-      addBox({ x: -50, y: 5, z: 23 }, { x: 126, y: 62, z: 16 }, dusk ? "#575b59" : "#a6a7a1", 0, 0.95);
-      addBox({ x: -50, y: 5, z: 41 }, { x: 112, y: 52, z: 22 }, dusk ? "#686b68" : "#d5d0c5", 0, 0.95);
-      addBox({ x: 88, y: 5, z: 35 }, { x: 54, y: 54, z: 31 }, dusk ? "#5f615e" : "#beb8ab", 0, 0.95);
-
       const postZ = 110;
       for (const x of [-186, 186]) {
         for (const y of [-103, 103]) {
@@ -339,6 +302,10 @@ function PergolaViewer({
 
   return (
     <div className="viewer-shell">
+      <div
+        className={`viewer-environment ${yardVisible ? "is-visible" : ""} ${dusk ? "is-dusk" : ""}`}
+        aria-hidden="true"
+      />
       <div className="viewer-topline">
         <span><i /> Interactive 3D model</span>
         <button onClick={resetView} aria-label="Reset 3D view">Reset view ↗</button>
