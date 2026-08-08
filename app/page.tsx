@@ -46,7 +46,7 @@ const sizes = [
 ];
 
 const finishes = [
-  { name: "Carbon", value: "#343a38" },
+  { name: "Carbon", value: "#414946" },
   { name: "Cloud", value: "#d5d8d3" },
   { name: "Sand", value: "#a78d67" },
 ];
@@ -513,11 +513,12 @@ function RealPergolaViewer({
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (!camera || !controls) return;
-    camera.position.set(10.5, 4.55, 12.8);
-    controls.target.set(0, 2.18, 0);
+    const cameraScale = sizeIndex === 3 ? 1.12 : sizeIndex === 2 ? 1.04 : 1;
+    camera.position.set(8.45 * cameraScale, 5.2 + (cameraScale - 1) * 2.2, 10.85 * cameraScale);
+    controls.target.set(0, 1.48, 0);
     controls.autoRotate = true;
     controls.update();
-  }, []);
+  }, [sizeIndex]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -538,35 +539,32 @@ function RealPergolaViewer({
 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.18;
+    renderer.toneMappingExposure = 1.02;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#dfe8e1", 16, 38);
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 90);
-    camera.position.set(10.5, 4.55, 12.8);
+    const camera = new THREE.PerspectiveCamera(39, 1, 0.1, 140);
+    const cameraScale = sizeIndex === 3 ? 1.12 : sizeIndex === 2 ? 1.04 : 1;
+    camera.position.set(8.45 * cameraScale, 5.2 + (cameraScale - 1) * 2.2, 10.85 * cameraScale);
     cameraRef.current = camera;
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     const physicalEnvironment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = physicalEnvironment;
-    scene.environmentIntensity = 0.85;
+    scene.environmentIntensity = 0.78;
 
     const controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
     controls.dampingFactor = 0.075;
     controls.enablePan = false;
-    controls.minDistance = 10.5;
-    controls.maxDistance = 23;
+    controls.minDistance = 9.6;
+    controls.maxDistance = 24;
     controls.minPolarAngle = 0.42;
     controls.maxPolarAngle = 1.43;
-    const initialAzimuth = Math.atan2(10.5, 12.8);
-    controls.minAzimuthAngle = initialAzimuth - 0.62;
-    controls.maxAzimuthAngle = initialAzimuth + 0.62;
     controls.rotateSpeed = 0.62;
     controls.zoomSpeed = 0.72;
-    controls.target.set(0, 2.18, 0);
+    controls.target.set(0, 1.48, 0);
     controls.autoRotate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     controls.autoRotateSpeed = 0.32;
     const stopAutoRotate = () => { controls.autoRotate = false; };
@@ -591,34 +589,40 @@ function RealPergolaViewer({
       return texture;
     };
 
-    const daySky = makeSky(["#fdfefa", "#dce8e1", "#91aa9b"]);
-    const duskSky = makeSky(["#101c2c", "#485468", "#d49461"]);
     const studioSky = makeSky(["#ffffff", "#f0f2ed", "#cbd2cc"]);
-    scene.background = daySky;
-    const patioTexture = new THREE.TextureLoader().load("/coordinatez-patio-environment.jpg");
-    patioTexture.colorSpace = THREE.SRGBColorSpace;
-    patioTexture.wrapS = THREE.ClampToEdgeWrapping;
-    patioTexture.wrapT = THREE.ClampToEdgeWrapping;
-    patioTexture.repeat.set(1, 0.88);
-    patioTexture.updateMatrix();
-    const photoBackdropMaterial = new THREE.MeshBasicMaterial({
-      map: patioTexture,
-      color: "#ffffff",
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      fog: false,
-      toneMapped: false,
-    });
-    const photoBackdrop = new THREE.Mesh(new THREE.PlaneGeometry(150, 84), photoBackdropMaterial);
-    const backdropDistance = 31;
-    photoBackdrop.position.set(
-      -Math.sin(initialAzimuth) * backdropDistance,
-      2.65,
-      -Math.cos(initialAzimuth) * backdropDistance,
+    scene.background = studioSky;
+    scene.backgroundBlurriness = 0;
+    const panoramaBase = window.location.pathname.startsWith("/coordinatez-axis-demo")
+      ? "/coordinatez-axis-demo/"
+      : "/";
+    let panoramaTexture: THREE.Texture | null = null;
+    let panoramaEnvironment: THREE.Texture | null = null;
+    let panoramaLoaded = false;
+    let disposed = false;
+    new THREE.TextureLoader().load(
+      `${panoramaBase}coordinatez-patio-panorama-v2.png`,
+      (texture) => {
+        if (disposed) {
+          texture.dispose();
+          return;
+        }
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        panoramaTexture = texture;
+        panoramaEnvironment = pmremGenerator.fromEquirectangular(texture).texture;
+        scene.environment = panoramaEnvironment;
+        scene.environmentIntensity = 0.86;
+        scene.backgroundRotation.set(0, 3.2, 0);
+        scene.environmentRotation.set(0, 3.2, 0);
+        if (liveStateRef.current.yardVisible) scene.background = texture;
+        panoramaLoaded = true;
+      },
+      undefined,
+      () => {
+        panoramaLoaded = true;
+      },
     );
-    photoBackdrop.rotation.y = initialAzimuth;
-    photoBackdrop.renderOrder = -100;
-    scene.add(photoBackdrop);
 
     const woodCanvas = document.createElement("canvas");
     woodCanvas.width = 1024;
@@ -664,35 +668,120 @@ function RealPergolaViewer({
     woodTexture.repeat.set(6, 4.5);
     woodTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 
+    const stoneCanvas = document.createElement("canvas");
+    stoneCanvas.width = 1024;
+    stoneCanvas.height = 1024;
+    const stoneBumpCanvas = document.createElement("canvas");
+    stoneBumpCanvas.width = 1024;
+    stoneBumpCanvas.height = 1024;
+    const stoneContext = stoneCanvas.getContext("2d");
+    const stoneBumpContext = stoneBumpCanvas.getContext("2d");
+    const seeded = (index: number) => {
+      const value = Math.sin(index * 91.731 + 12.87) * 43758.5453;
+      return value - Math.floor(value);
+    };
+    if (stoneContext && stoneBumpContext) {
+      stoneContext.fillStyle = "#d8d1c5";
+      stoneContext.fillRect(0, 0, 1024, 1024);
+      stoneBumpContext.fillStyle = "#9a9a96";
+      stoneBumpContext.fillRect(0, 0, 1024, 1024);
+      const tileWidth = 256;
+      const tileHeight = 205;
+      for (let row = -1; row < 6; row += 1) {
+        for (let column = -1; column < 5; column += 1) {
+          const index = (row + 1) * 7 + column + 2;
+          const x = column * tileWidth + (row % 2 ? -tileWidth / 2 : 0);
+          const y = row * tileHeight;
+          const tone = Math.round(204 + seeded(index) * 24);
+          stoneContext.fillStyle = `rgb(${tone + 7},${tone + 3},${tone - 5})`;
+          stoneContext.fillRect(x + 4, y + 4, tileWidth - 8, tileHeight - 8);
+          stoneContext.strokeStyle = "rgba(113,105,94,.34)";
+          stoneContext.lineWidth = 5;
+          stoneContext.strokeRect(x + 2.5, y + 2.5, tileWidth - 5, tileHeight - 5);
+          stoneContext.strokeStyle = "rgba(255,255,255,.34)";
+          stoneContext.lineWidth = 1.5;
+          stoneContext.strokeRect(x + 7, y + 7, tileWidth - 14, tileHeight - 14);
+          const bumpTone = Math.round(142 + seeded(index + 33) * 24);
+          stoneBumpContext.fillStyle = `rgb(${bumpTone},${bumpTone},${bumpTone})`;
+          stoneBumpContext.fillRect(x + 5, y + 5, tileWidth - 10, tileHeight - 10);
+          stoneBumpContext.strokeStyle = "#4c4c49";
+          stoneBumpContext.lineWidth = 8;
+          stoneBumpContext.strokeRect(x + 3, y + 3, tileWidth - 6, tileHeight - 6);
+        }
+      }
+      for (let index = 0; index < 2400; index += 1) {
+        const x = seeded(index * 2 + 88) * 1024;
+        const y = seeded(index * 2 + 89) * 1024;
+        const radius = 0.35 + seeded(index + 99) * 1.7;
+        stoneContext.fillStyle = `rgba(88,77,64,${0.018 + seeded(index + 250) * 0.045})`;
+        stoneContext.beginPath();
+        stoneContext.arc(x, y, radius, 0, Math.PI * 2);
+        stoneContext.fill();
+        stoneBumpContext.fillStyle = `rgba(205,205,200,${0.08 + seeded(index + 450) * 0.14})`;
+        stoneBumpContext.fillRect(x, y, radius, radius);
+      }
+    }
+    const stoneTexture = new THREE.CanvasTexture(stoneCanvas);
+    stoneTexture.colorSpace = THREE.SRGBColorSpace;
+    stoneTexture.wrapS = THREE.RepeatWrapping;
+    stoneTexture.wrapT = THREE.RepeatWrapping;
+    stoneTexture.repeat.set(12, 12);
+    stoneTexture.anisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
+    const stoneBumpTexture = new THREE.CanvasTexture(stoneBumpCanvas);
+    stoneBumpTexture.wrapS = THREE.RepeatWrapping;
+    stoneBumpTexture.wrapT = THREE.RepeatWrapping;
+    stoneBumpTexture.repeat.copy(stoneTexture.repeat);
+
+    const finishRoughnessCanvas = document.createElement("canvas");
+    finishRoughnessCanvas.width = 256;
+    finishRoughnessCanvas.height = 256;
+    const finishRoughnessContext = finishRoughnessCanvas.getContext("2d");
+    if (finishRoughnessContext) {
+      const image = finishRoughnessContext.createImageData(256, 256);
+      for (let index = 0; index < image.data.length; index += 4) {
+        const grain = Math.round(118 + seeded(index) * 38);
+        image.data[index] = grain;
+        image.data[index + 1] = grain;
+        image.data[index + 2] = grain;
+        image.data[index + 3] = 255;
+      }
+      finishRoughnessContext.putImageData(image, 0, 0);
+    }
+    const finishRoughnessTexture = new THREE.CanvasTexture(finishRoughnessCanvas);
+    finishRoughnessTexture.wrapS = THREE.RepeatWrapping;
+    finishRoughnessTexture.wrapT = THREE.RepeatWrapping;
+    finishRoughnessTexture.repeat.set(7, 7);
+
     const aluminum = new THREE.MeshPhysicalMaterial({
       color: liveStateRef.current.finish,
-      metalness: 0.68,
-      roughness: 0.3,
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.34,
+      metalness: 0.58,
+      roughness: 0.29,
+      roughnessMap: finishRoughnessTexture,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.25,
     });
     const louverMaterial = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(liveStateRef.current.finish).offsetHSL(0, 0, -0.025),
-      metalness: 0.64,
-      roughness: 0.34,
-      clearcoat: 0.16,
+      metalness: 0.55,
+      roughness: 0.28,
+      roughnessMap: finishRoughnessTexture,
+      clearcoat: 0.18,
+      clearcoatRoughness: 0.3,
     });
-    const channelMaterial = new THREE.MeshStandardMaterial({ color: "#101714", metalness: 0.72, roughness: 0.34 });
-    const boltMaterial = new THREE.MeshStandardMaterial({ color: "#0b0f0d", metalness: 0.92, roughness: 0.2 });
+    const channelMaterial = new THREE.MeshStandardMaterial({ color: "#141a18", metalness: 0.76, roughness: 0.27 });
+    const fastenerMaterial = new THREE.MeshStandardMaterial({ color: "#8f9793", metalness: 0.94, roughness: 0.17 });
+    const gasketMaterial = new THREE.MeshStandardMaterial({ color: "#090d0c", metalness: 0.08, roughness: 0.7 });
     const deckMaterial = new THREE.MeshStandardMaterial({ map: woodTexture, color: "#ffffff", roughness: 0.72, metalness: 0.03 });
-    const patioShadowMaterial = new THREE.ShadowMaterial({ color: "#171b18", opacity: 0.13, transparent: true });
-    const grassMaterial = new THREE.MeshStandardMaterial({ color: "#314f3b", roughness: 1 });
-    const stoneMaterial = new THREE.MeshStandardMaterial({ color: "#d8d3c8", roughness: 0.92 });
-    const wallMaterial = new THREE.MeshStandardMaterial({ color: "#29332f", roughness: 0.74 });
-    const glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: "#9fb5ae",
-      metalness: 0.05,
-      roughness: 0.13,
-      transmission: 0.3,
-      transparent: true,
-      opacity: 0.7,
+    const patioMaterial = new THREE.MeshPhysicalMaterial({
+      map: stoneTexture,
+      bumpMap: stoneBumpTexture,
+      bumpScale: 0.032,
+      color: "#fff9ed",
+      metalness: 0.01,
+      roughness: 0.86,
+      clearcoat: 0.025,
+      clearcoatRoughness: 0.72,
     });
-    const warmMaterial = new THREE.MeshStandardMaterial({ color: "#d6a978", emissive: "#f0a65d", emissiveIntensity: 0.34, roughness: 0.7 });
     const ledMaterial = new THREE.MeshStandardMaterial({ color: "#f2ead8", emissive: "#ffd59a", emissiveIntensity: 0.08, roughness: 0.3 });
     const glowCanvas = document.createElement("canvas");
     glowCanvas.width = 256;
@@ -733,7 +822,7 @@ function RealPergolaViewer({
     const contactShadowMaterial = new THREE.MeshBasicMaterial({
       map: contactShadowTexture,
       transparent: true,
-      opacity: 0.36,
+      opacity: 0.16,
       depthWrite: false,
       toneMapped: false,
     });
@@ -755,47 +844,11 @@ function RealPergolaViewer({
       return mesh;
     };
 
-    const deck = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), patioShadowMaterial);
+    const deck = new THREE.Mesh(new THREE.CircleGeometry(52, 128), patioMaterial);
     deck.rotation.x = -Math.PI / 2;
-    deck.position.y = -0.012;
+    deck.position.y = -0.018;
     deck.receiveShadow = true;
     scene.add(deck);
-
-    const environment = new THREE.Group();
-    scene.add(environment);
-    const lawn = new THREE.Mesh(new THREE.PlaneGeometry(38, 32), grassMaterial);
-    lawn.rotation.x = -Math.PI / 2;
-    lawn.position.set(0, -0.09, -5);
-    lawn.receiveShadow = true;
-    environment.add(lawn);
-    addBox(environment, [12, 3.8, 0.42], [1.8, 1.86, -6.6], wallMaterial, false, true);
-    addBox(environment, [4.5, 0.34, 1.2], [1.7, 3.88, -6.25], channelMaterial, true, true);
-    addBox(environment, [4.35, 2.72, 0.08], [0.8, 1.48, -6.36], glassMaterial, false, false);
-    addBox(environment, [2.55, 2.72, 0.06], [4.35, 1.48, -6.35], warmMaterial, false, false);
-    addBox(environment, [3.1, 0.16, 0.55], [-3.6, 0.08, -5.1], stoneMaterial, false, true);
-
-    const foliageMaterial = new THREE.MeshStandardMaterial({ color: "#244734", roughness: 0.98 });
-    const trunkMaterial = new THREE.MeshStandardMaterial({ color: "#594a39", roughness: 1 });
-    const addTree = (x: number, z: number, scale: number) => {
-      const tree = new THREE.Group();
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09 * scale, 0.13 * scale, 1.4 * scale, 9), trunkMaterial);
-      trunk.position.y = 0.7 * scale;
-      trunk.castShadow = true;
-      tree.add(trunk);
-      for (const [offsetX, offsetY, offsetZ, radius] of [
-        [0, 1.55, 0, 0.65], [-0.42, 1.42, 0.08, 0.46], [0.42, 1.48, -0.08, 0.52], [0.05, 1.95, 0.05, 0.5],
-      ] as const) {
-        const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(radius * scale, 1), foliageMaterial);
-        crown.position.set(offsetX * scale, offsetY * scale, offsetZ * scale);
-        crown.castShadow = true;
-        tree.add(crown);
-      }
-      tree.position.set(x, 0, z);
-      environment.add(tree);
-    };
-    addTree(-6.4, -4.9, 1.15);
-    addTree(7.5, -5.4, 1.3);
-    addTree(-7.4, 1.2, 0.9);
 
     const footprintProfiles = [
       { width: 6, depth: 4.1, posts: 4 },
@@ -818,60 +871,103 @@ function RealPergolaViewer({
       [-halfWidth, -halfDepth], [-halfWidth, halfDepth], [halfWidth, -halfDepth], [halfWidth, halfDepth],
     ];
     if (footprint.posts === 6) postAnchors.push([-halfWidth, 0], [halfWidth, 0]);
-    const boltGeometry = new THREE.CylinderGeometry(0.037, 0.037, 0.034, 18);
-    const washerGeometry = new THREE.CylinderGeometry(0.062, 0.062, 0.016, 20);
+    const boltGeometry = new THREE.CylinderGeometry(0.041, 0.041, 0.036, 6);
+    const washerGeometry = new THREE.CylinderGeometry(0.068, 0.068, 0.012, 28);
     for (const [x, z] of postAnchors) {
-      const contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.72), contactShadowMaterial);
+      const contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 0.62), contactShadowMaterial);
       contactShadow.rotation.x = -Math.PI / 2;
-      contactShadow.position.set(x, -0.009, z);
+      contactShadow.position.set(x, -0.011, z);
       contactShadow.renderOrder = 2;
       pergola.add(contactShadow);
-      addBox(pergola, [0.52, 0.09, 0.52], [x, 0.045, z], channelMaterial, true, true);
-      addBox(pergola, [0.34, 0.15, 0.34], [x, 0.14, z], aluminum, true, true);
-      addBox(pergola, [0.245, 3.08, 0.245], [x, 1.69, z], aluminum, true, true);
-      for (const boltX of [-0.17, 0.17]) {
-        for (const boltZ of [-0.17, 0.17]) {
-          const washer = new THREE.Mesh(washerGeometry, boltMaterial);
-          washer.position.set(x + boltX, 0.101, z + boltZ);
+      addBox(pergola, [0.58, 0.022, 0.58], [x, 0.011, z], gasketMaterial, false, true);
+      addBox(pergola, [0.54, 0.068, 0.54], [x, 0.056, z], aluminum, true, true);
+      addBox(pergola, [0.365, 0.145, 0.365], [x, 0.145, z], aluminum, true, true);
+      addBox(pergola, [0.255, 2.94, 0.255], [x, 1.685, z], aluminum, true, true);
+      addBox(pergola, [0.012, 2.68, 0.03], [x + Math.sign(x || 1) * 0.128, 1.71, z], gasketMaterial, false, false);
+      addBox(pergola, [0.03, 2.68, 0.012], [x, 1.71, z + Math.sign(z || 1) * 0.128], gasketMaterial, false, false);
+      addBox(pergola, [0.285, 0.055, 0.285], [x, 3.08, z], channelMaterial, true, true);
+      for (const boltX of [-0.19, 0.19]) {
+        for (const boltZ of [-0.19, 0.19]) {
+          const washer = new THREE.Mesh(washerGeometry, fastenerMaterial);
+          washer.position.set(x + boltX, 0.099, z + boltZ);
           washer.castShadow = true;
           pergola.add(washer);
-          const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
-          bolt.position.set(x + boltX, 0.125, z + boltZ);
+          const bolt = new THREE.Mesh(boltGeometry, fastenerMaterial);
+          bolt.position.set(x + boltX, 0.122, z + boltZ);
           bolt.castShadow = true;
           pergola.add(bolt);
         }
       }
     }
 
-    addBox(pergola, [footprint.width + 0.48, 0.34, 0.32], [0, 3.18, -frameFrontZ], aluminum);
-    addBox(pergola, [footprint.width + 0.48, 0.34, 0.32], [0, 3.18, frameFrontZ], aluminum);
-    addBox(pergola, [0.32, 0.34, footprint.depth + 0.38], [-frameSideX, 3.18, 0], aluminum);
-    addBox(pergola, [0.32, 0.34, footprint.depth + 0.38], [frameSideX, 3.18, 0], aluminum);
-    addBox(pergola, [footprint.width + 0.08, 0.11, 0.12], [0, 3.01, -(halfDepth - 0.11)], channelMaterial);
-    addBox(pergola, [footprint.width + 0.08, 0.11, 0.12], [0, 3.01, halfDepth - 0.11], channelMaterial);
-    addBox(pergola, [0.16, 0.17, footprint.depth - 0.22], [-(halfWidth - 0.11), 3.04, 0], channelMaterial);
-    addBox(pergola, [0.16, 0.17, footprint.depth - 0.22], [halfWidth - 0.11, 3.04, 0], channelMaterial);
-    addBox(pergola, [0.37, 0.38, 0.92], [halfWidth + 0.15, 3.13, -(halfDepth - 0.63)], channelMaterial);
+    addBox(pergola, [footprint.width + 0.5, 0.36, 0.34], [0, 3.2, -frameFrontZ], aluminum);
+    addBox(pergola, [footprint.width + 0.5, 0.36, 0.34], [0, 3.2, frameFrontZ], aluminum);
+    addBox(pergola, [0.34, 0.36, footprint.depth + 0.4], [-frameSideX, 3.2, 0], aluminum);
+    addBox(pergola, [0.34, 0.36, footprint.depth + 0.4], [frameSideX, 3.2, 0], aluminum);
+    addBox(pergola, [footprint.width + 0.1, 0.085, 0.15], [0, 3.02, -(halfDepth - 0.1)], gasketMaterial);
+    addBox(pergola, [footprint.width + 0.1, 0.085, 0.15], [0, 3.02, halfDepth - 0.1], gasketMaterial);
+    addBox(pergola, [0.145, 0.16, footprint.depth - 0.18], [-(halfWidth - 0.1), 3.05, 0], gasketMaterial);
+    addBox(pergola, [0.145, 0.16, footprint.depth - 0.18], [halfWidth - 0.1, 3.05, 0], gasketMaterial);
+    addBox(pergola, [footprint.width + 0.2, 0.055, 0.035], [0, 3.335, frameFrontZ + 0.17], fastenerMaterial, false, false);
+    addBox(pergola, [footprint.width + 0.2, 0.055, 0.035], [0, 3.335, -frameFrontZ - 0.17], fastenerMaterial, false, false);
+    const motorHousing = addBox(pergola, [0.4, 0.32, 1.02], [halfWidth + 0.17, 3.16, -(halfDepth - 0.68)], aluminum);
+    motorHousing.rotation.z = -0.012;
+    addBox(pergola, [0.08, 0.18, 0.72], [halfWidth + 0.355, 3.15, -(halfDepth - 0.68)], gasketMaterial, false, false);
+    const motorCap = new THREE.Mesh(new THREE.CylinderGeometry(0.073, 0.073, 0.035, 20), fastenerMaterial);
+    motorCap.rotation.z = Math.PI / 2;
+    motorCap.position.set(halfWidth + 0.375, 3.16, -(halfDepth - 0.68));
+    motorCap.castShadow = true;
+    pergola.add(motorCap);
     for (const [x, z] of [
       [-(halfWidth - 0.18), -(halfDepth - 0.23)], [-(halfWidth - 0.18), halfDepth - 0.23],
       [halfWidth - 0.18, -(halfDepth - 0.23)], [halfWidth - 0.18, halfDepth - 0.23],
     ] as const) {
-      addBox(pergola, [0.34, 0.22, 0.34], [x, 2.95, z], channelMaterial, true, true);
+      addBox(pergola, [0.35, 0.21, 0.35], [x, 2.97, z], channelMaterial, true, true);
     }
+    addBox(pergola, [0.1, 0.29, 0.025], [halfWidth, 0.38, halfDepth + 0.131], gasketMaterial, false, false);
 
-    const louverMeshes: THREE.Mesh[] = [];
-    const louverGeometry = new RoundedBoxGeometry(innerWidth, 0.055, 0.235, 2, 0.018);
-    const louverCount = Math.max(18, Math.round(innerDepth / 0.21));
+    const louverMeshes: THREE.Group[] = [];
+    const louverShape = new THREE.Shape();
+    louverShape.moveTo(-0.13, -0.018);
+    louverShape.bezierCurveTo(-0.095, -0.042, -0.01, -0.043, 0.085, -0.018);
+    louverShape.lineTo(0.13, 0.012);
+    louverShape.bezierCurveTo(0.095, 0.039, 0.01, 0.044, -0.09, 0.03);
+    louverShape.closePath();
+    const louverGeometry = new THREE.ExtrudeGeometry(louverShape, {
+      depth: innerWidth,
+      steps: 1,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      bevelSize: 0.008,
+      bevelThickness: 0.008,
+    });
+    louverGeometry.center();
+    louverGeometry.rotateY(Math.PI / 2);
+    const pivotGeometry = new THREE.CylinderGeometry(0.027, 0.027, 0.09, 14);
+    pivotGeometry.rotateZ(Math.PI / 2);
+    const louverCount = Math.max(18, Math.round(innerDepth / 0.235));
     const louverSpacing = innerDepth / louverCount;
     const louverStart = -((louverCount - 1) * louverSpacing) / 2;
     for (let index = 0; index < louverCount; index += 1) {
+      const bladeGroup = new THREE.Group();
+      bladeGroup.position.set(0, 3.19, louverStart + index * louverSpacing);
       const blade = new THREE.Mesh(louverGeometry, louverMaterial);
-      blade.position.set(0, 3.17, louverStart + index * louverSpacing);
       blade.castShadow = true;
       blade.receiveShadow = true;
-      pergola.add(blade);
-      louverMeshes.push(blade);
+      bladeGroup.add(blade);
+      addBox(bladeGroup, [innerWidth - 0.04, 0.012, 0.012], [0, 0.028, 0.112], gasketMaterial, false, false);
+      for (const x of [-innerWidth / 2 - 0.025, innerWidth / 2 + 0.025]) {
+        const pivot = new THREE.Mesh(pivotGeometry, fastenerMaterial);
+        pivot.position.x = x;
+        pivot.castShadow = true;
+        bladeGroup.add(pivot);
+      }
+      const lever = addBox(bladeGroup, [0.12, 0.035, 0.035], [innerWidth / 2 - 0.08, -0.08, 0.02], fastenerMaterial, true, false);
+      lever.rotation.x = 0.3;
+      pergola.add(bladeGroup);
+      louverMeshes.push(bladeGroup);
     }
+    addBox(pergola, [0.045, 0.07, innerDepth - 0.16], [halfWidth - 0.03, 3.08, 0.02], fastenerMaterial, true, false);
 
     const frontLed = addBox(pergola, [footprint.width - 0.15, 0.024, 0.035], [0, 2.98, halfDepth - 0.14], ledMaterial, false, false);
     const rearLed = addBox(pergola, [footprint.width - 0.15, 0.024, 0.035], [0, 2.98, -(halfDepth - 0.14)], ledMaterial, false, false);
@@ -915,24 +1011,24 @@ function RealPergolaViewer({
     brandPlate.position.set(Math.min(0.68, footprint.width * 0.11), 3.18, halfDepth + 0.195);
     pergola.add(brandPlate);
 
-    const hemisphere = new THREE.HemisphereLight("#fff8e9", "#817c72", 2.2);
+    const hemisphere = new THREE.HemisphereLight("#fff5df", "#6b655c", 1.48);
     scene.add(hemisphere);
-    const sun = new THREE.DirectionalLight("#ffdfad", 3.05);
-    sun.position.set(-8, 12, -10);
+    const sun = new THREE.DirectionalLight("#ffd6a0", 3.7);
+    sun.position.set(13, 10, -9);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1536, 1536);
-    sun.shadow.camera.left = -9;
-    sun.shadow.camera.right = 9;
-    sun.shadow.camera.top = 9;
-    sun.shadow.camera.bottom = -9;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -11;
+    sun.shadow.camera.right = 11;
+    sun.shadow.camera.top = 11;
+    sun.shadow.camera.bottom = -11;
     sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = 32;
-    sun.shadow.bias = -0.00012;
-    sun.shadow.normalBias = 0.025;
-    sun.shadow.radius = 3;
+    sun.shadow.camera.far = 40;
+    sun.shadow.bias = -0.00016;
+    sun.shadow.normalBias = 0.018;
+    sun.shadow.radius = 4;
     scene.add(sun);
-    const rim = new THREE.DirectionalLight("#d9e6e8", 0.5);
-    rim.position.set(8, 4, 8);
+    const rim = new THREE.DirectionalLight("#d6e7ee", 0.72);
+    rim.position.set(-9, 6, 11);
     scene.add(rim);
     const warmLight = new THREE.PointLight("#ffbc73", 0, 14, 1.8);
     warmLight.position.set(3.9, 2.25, -4.9);
@@ -972,7 +1068,7 @@ function RealPergolaViewer({
       const targetColor = new THREE.Color(state.finish);
       aluminum.color.lerp(targetColor, 0.09);
       louverMaterial.color.lerp(targetColor.clone().offsetHSL(0, 0, -0.025), 0.09);
-      const bladeTarget = state.louversOpen ? -Math.PI * 0.46 : 0;
+      const bladeTarget = state.louversOpen ? -Math.PI * 0.28 : 0;
       for (let index = 0; index < louverMeshes.length; index += 1) {
         const blade = louverMeshes[index];
         const response = Math.min(1, delta * (5.2 + index * 0.035));
@@ -980,26 +1076,24 @@ function RealPergolaViewer({
       }
 
       const duskMix = state.dusk ? 1 : 0;
-      scene.background = state.yardVisible ? (state.dusk ? duskSky : daySky) : studioSky;
-      scene.backgroundIntensity = THREE.MathUtils.lerp(scene.backgroundIntensity, state.dusk ? 0.56 : 1, 0.06);
-      environment.visible = false;
-      photoBackdrop.visible = state.yardVisible;
-      photoBackdropMaterial.color.lerp(new THREE.Color(state.dusk ? "#70685c" : "#ffffff"), 0.065);
-      deck.material = state.yardVisible ? patioShadowMaterial : deckMaterial;
-      if (scene.fog) scene.fog.color.lerp(new THREE.Color(state.dusk ? "#23303a" : "#dfe8e1"), 0.08);
-      renderer.toneMappingExposure = THREE.MathUtils.lerp(renderer.toneMappingExposure, state.dusk ? 0.88 : 1.18, 0.06);
-      hemisphere.intensity = THREE.MathUtils.lerp(hemisphere.intensity, state.dusk ? 0.72 : 2.35, 0.07);
-      sun.intensity = THREE.MathUtils.lerp(sun.intensity, state.dusk ? 0.38 : 2.35, 0.07);
-      rim.intensity = THREE.MathUtils.lerp(rim.intensity, state.dusk ? 0.22 : 0.48, 0.07);
-      warmLight.intensity = THREE.MathUtils.lerp(warmLight.intensity, state.dusk ? 18 : 0, 0.07);
+      scene.background = state.yardVisible && panoramaTexture ? panoramaTexture : studioSky;
+      scene.environment = state.yardVisible && panoramaEnvironment ? panoramaEnvironment : physicalEnvironment;
+      scene.backgroundIntensity = THREE.MathUtils.lerp(scene.backgroundIntensity, state.dusk ? 0.38 : 0.94, 0.06);
+      scene.environmentIntensity = THREE.MathUtils.lerp(scene.environmentIntensity, state.dusk ? 0.34 : 0.86, 0.06);
+      deck.material = state.yardVisible ? patioMaterial : deckMaterial;
+      renderer.toneMappingExposure = THREE.MathUtils.lerp(renderer.toneMappingExposure, state.dusk ? 0.68 : 1.02, 0.06);
+      hemisphere.intensity = THREE.MathUtils.lerp(hemisphere.intensity, state.dusk ? 0.42 : 1.48, 0.07);
+      sun.intensity = THREE.MathUtils.lerp(sun.intensity, state.dusk ? 0.16 : 3.7, 0.07);
+      rim.intensity = THREE.MathUtils.lerp(rim.intensity, state.dusk ? 0.22 : 0.72, 0.07);
+      warmLight.intensity = THREE.MathUtils.lerp(warmLight.intensity, state.dusk ? 8 : 0, 0.07);
       ledMaterial.emissiveIntensity = THREE.MathUtils.lerp(ledMaterial.emissiveIntensity, state.dusk ? 5.5 : 0.08, 0.1);
-      glowMaterial.opacity = THREE.MathUtils.lerp(glowMaterial.opacity, state.dusk ? 0.48 : 0, 0.09);
-      contactShadowMaterial.opacity = THREE.MathUtils.lerp(contactShadowMaterial.opacity, state.dusk ? 0.28 : 0.36, 0.08);
+      glowMaterial.opacity = THREE.MathUtils.lerp(glowMaterial.opacity, state.dusk ? 0.28 : 0, 0.09);
+      contactShadowMaterial.opacity = THREE.MathUtils.lerp(contactShadowMaterial.opacity, state.dusk ? 0.1 : 0.16, 0.08);
       for (const light of pergolaLights) light.intensity = THREE.MathUtils.lerp(light.intensity, duskMix * 13, 0.09);
 
       controls.update(delta);
       renderer.render(scene, camera);
-      if (!hasRendered) {
+      if (!hasRendered && panoramaLoaded) {
         hasRendered = true;
         window.setTimeout(() => setViewerReady(true), 260);
       }
@@ -1008,6 +1102,7 @@ function RealPergolaViewer({
     render();
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
       controls.removeEventListener("start", stopAutoRotate);
@@ -1021,12 +1116,14 @@ function RealPergolaViewer({
         for (const material of materials) material.dispose();
       });
       woodTexture.dispose();
+      stoneTexture.dispose();
+      stoneBumpTexture.dispose();
+      finishRoughnessTexture.dispose();
       glowTexture.dispose();
       contactShadowTexture.dispose();
-      daySky.dispose();
-      duskSky.dispose();
       studioSky.dispose();
-      patioTexture.dispose();
+      panoramaTexture?.dispose();
+      panoramaEnvironment?.dispose();
       brandTexture.dispose();
       physicalEnvironment.dispose();
       pmremGenerator.dispose();
@@ -1052,7 +1149,7 @@ function RealPergolaViewer({
         className="product-canvas"
         aria-label="Interactive three-dimensional model of the Coordinatez Axis pergola. Drag to orbit and scroll to zoom."
       />
-      <div className="viewer-badge">WebGL physical materials</div>
+      <div className="viewer-badge">Photo-matched 360° environment</div>
     </div>
   );
 }

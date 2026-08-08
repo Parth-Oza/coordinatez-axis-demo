@@ -52,12 +52,15 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   await access(new URL("../public/models-triptych.jpg", import.meta.url));
   await access(new URL("../public/hero-triptych-v2.jpg", import.meta.url));
   await access(new URL("../public/coordinatez-patio-environment.jpg", import.meta.url));
+  await access(new URL("../public/coordinatez-patio-panorama-v2.png", import.meta.url));
   assert.match(page, /<RealPergolaViewer/);
   assert.match(page, /THREE\.WebGLRenderer/);
   assert.match(page, /OrbitControls/);
   assert.match(page, /RoundedBoxGeometry/);
-  assert.match(page, /photoBackdrop/);
-  assert.match(page, /minAzimuthAngle/);
+  assert.match(page, /EquirectangularReflectionMapping/);
+  assert.match(page, /backgroundRotation/);
+  assert.match(page, /stoneBumpTexture/);
+  assert.match(page, /ExtrudeGeometry/);
   assert.match(page, /footprintProfiles/);
   assert.match(page, /footprint\.posts === 6/);
   assert.match(page, /contactShadowMaterial/);
