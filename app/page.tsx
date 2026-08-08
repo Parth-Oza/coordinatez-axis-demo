@@ -9,6 +9,10 @@ import {
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 declare const __BRIEF_API_URL_B64__: string | undefined;
 
@@ -481,6 +485,489 @@ function PergolaViewer({
   );
 }
 
+function RealPergolaViewer({
+  finish,
+  louversOpen,
+  yardVisible,
+  dusk,
+}: {
+  finish: string;
+  louversOpen: boolean;
+  yardVisible: boolean;
+  dusk: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk });
+  const [viewerReady, setViewerReady] = useState(false);
+  const [webglFailed, setWebglFailed] = useState(false);
+
+  useEffect(() => {
+    liveStateRef.current = { finish, louversOpen, yardVisible, dusk };
+  }, [dusk, finish, louversOpen, yardVisible]);
+
+  const resetView = useCallback(() => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+    camera.position.set(10.5, 4.55, 12.8);
+    controls.target.set(0, 2.18, 0);
+    controls.autoRotate = true;
+    controls.update();
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance",
+      });
+    } catch {
+      queueMicrotask(() => setWebglFailed(true));
+      return;
+    }
+
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.18;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog("#dfe8e1", 16, 38);
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 90);
+    camera.position.set(10.5, 4.55, 12.8);
+    cameraRef.current = camera;
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const physicalEnvironment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = physicalEnvironment;
+    scene.environmentIntensity = 0.85;
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.075;
+    controls.enablePan = false;
+    controls.minDistance = 10.5;
+    controls.maxDistance = 23;
+    controls.minPolarAngle = 0.42;
+    controls.maxPolarAngle = 1.43;
+    controls.rotateSpeed = 0.62;
+    controls.zoomSpeed = 0.72;
+    controls.target.set(0, 2.18, 0);
+    controls.autoRotate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    controls.autoRotateSpeed = 0.32;
+    const stopAutoRotate = () => { controls.autoRotate = false; };
+    controls.addEventListener("start", stopAutoRotate);
+    controlsRef.current = controls;
+
+    const makeSky = (colors: [string, string, string]) => {
+      const textureCanvas = document.createElement("canvas");
+      textureCanvas.width = 32;
+      textureCanvas.height = 512;
+      const textureContext = textureCanvas.getContext("2d");
+      if (textureContext) {
+        const gradient = textureContext.createLinearGradient(0, 0, 0, 512);
+        gradient.addColorStop(0, colors[0]);
+        gradient.addColorStop(0.58, colors[1]);
+        gradient.addColorStop(1, colors[2]);
+        textureContext.fillStyle = gradient;
+        textureContext.fillRect(0, 0, 32, 512);
+      }
+      const texture = new THREE.CanvasTexture(textureCanvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    };
+
+    const daySky = makeSky(["#fdfefa", "#dce8e1", "#91aa9b"]);
+    const duskSky = makeSky(["#101c2c", "#485468", "#d49461"]);
+    const studioSky = makeSky(["#ffffff", "#f0f2ed", "#cbd2cc"]);
+    scene.background = daySky;
+    const patioTexture = new THREE.TextureLoader().load("/coordinatez-patio-environment.jpg");
+    patioTexture.colorSpace = THREE.SRGBColorSpace;
+    patioTexture.wrapS = THREE.ClampToEdgeWrapping;
+    patioTexture.wrapT = THREE.ClampToEdgeWrapping;
+    patioTexture.repeat.set(1, 0.88);
+    patioTexture.updateMatrix();
+
+    const woodCanvas = document.createElement("canvas");
+    woodCanvas.width = 1024;
+    woodCanvas.height = 1024;
+    const woodContext = woodCanvas.getContext("2d");
+    if (woodContext) {
+      const base = woodContext.createLinearGradient(0, 0, 1024, 1024);
+      base.addColorStop(0, "#c6a37a");
+      base.addColorStop(0.5, "#9d7653");
+      base.addColorStop(1, "#b58b61");
+      woodContext.fillStyle = base;
+      woodContext.fillRect(0, 0, 1024, 1024);
+      for (let x = 0; x <= 1024; x += 128) {
+        woodContext.strokeStyle = "rgba(48,27,15,.46)";
+        woodContext.lineWidth = 5;
+        woodContext.beginPath();
+        woodContext.moveTo(x, 0);
+        woodContext.lineTo(x, 1024);
+        woodContext.stroke();
+        woodContext.strokeStyle = "rgba(255,236,207,.2)";
+        woodContext.lineWidth = 2;
+        woodContext.beginPath();
+        woodContext.moveTo(x + 6, 0);
+        woodContext.lineTo(x + 6, 1024);
+        woodContext.stroke();
+      }
+      for (let index = 0; index < 75; index += 1) {
+        const y = index * 13.7;
+        woodContext.strokeStyle = `rgba(60,34,19,${0.035 + (index % 4) * 0.012})`;
+        woodContext.lineWidth = 1.2;
+        woodContext.beginPath();
+        woodContext.moveTo(0, y);
+        for (let x = 0; x <= 1024; x += 64) {
+          woodContext.lineTo(x, y + Math.sin(x * 0.022 + index) * 4.5);
+        }
+        woodContext.stroke();
+      }
+    }
+    const woodTexture = new THREE.CanvasTexture(woodCanvas);
+    woodTexture.colorSpace = THREE.SRGBColorSpace;
+    woodTexture.wrapS = THREE.RepeatWrapping;
+    woodTexture.wrapT = THREE.RepeatWrapping;
+    woodTexture.repeat.set(6, 4.5);
+    woodTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+
+    const aluminum = new THREE.MeshPhysicalMaterial({
+      color: liveStateRef.current.finish,
+      metalness: 0.68,
+      roughness: 0.3,
+      clearcoat: 0.28,
+      clearcoatRoughness: 0.34,
+    });
+    const louverMaterial = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(liveStateRef.current.finish).offsetHSL(0, 0, -0.025),
+      metalness: 0.64,
+      roughness: 0.34,
+      clearcoat: 0.16,
+    });
+    const channelMaterial = new THREE.MeshStandardMaterial({ color: "#101714", metalness: 0.72, roughness: 0.34 });
+    const boltMaterial = new THREE.MeshStandardMaterial({ color: "#0b0f0d", metalness: 0.92, roughness: 0.2 });
+    const deckMaterial = new THREE.MeshStandardMaterial({ map: woodTexture, color: "#ffffff", roughness: 0.72, metalness: 0.03 });
+    const patioShadowMaterial = new THREE.ShadowMaterial({ color: "#142219", opacity: 0.2, transparent: true });
+    const grassMaterial = new THREE.MeshStandardMaterial({ color: "#314f3b", roughness: 1 });
+    const stoneMaterial = new THREE.MeshStandardMaterial({ color: "#d8d3c8", roughness: 0.92 });
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: "#29332f", roughness: 0.74 });
+    const glassMaterial = new THREE.MeshPhysicalMaterial({
+      color: "#9fb5ae",
+      metalness: 0.05,
+      roughness: 0.13,
+      transmission: 0.3,
+      transparent: true,
+      opacity: 0.7,
+    });
+    const warmMaterial = new THREE.MeshStandardMaterial({ color: "#d6a978", emissive: "#f0a65d", emissiveIntensity: 0.34, roughness: 0.7 });
+    const ledMaterial = new THREE.MeshStandardMaterial({ color: "#f2ead8", emissive: "#ffd59a", emissiveIntensity: 0.08, roughness: 0.3 });
+    const glowCanvas = document.createElement("canvas");
+    glowCanvas.width = 256;
+    glowCanvas.height = 256;
+    const glowContext = glowCanvas.getContext("2d");
+    if (glowContext) {
+      const glow = glowContext.createRadialGradient(128, 128, 8, 128, 128, 124);
+      glow.addColorStop(0, "rgba(255,222,164,.95)");
+      glow.addColorStop(0.38, "rgba(255,197,111,.44)");
+      glow.addColorStop(1, "rgba(255,183,88,0)");
+      glowContext.fillStyle = glow;
+      glowContext.fillRect(0, 0, 256, 256);
+    }
+    const glowTexture = new THREE.CanvasTexture(glowCanvas);
+    glowTexture.colorSpace = THREE.SRGBColorSpace;
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      map: glowTexture,
+      color: "#ffd39a",
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    });
+
+    const addBox = (
+      parent: THREE.Object3D,
+      size: [number, number, number],
+      position: [number, number, number],
+      material: THREE.Material,
+      castShadow = true,
+      receiveShadow = false,
+    ) => {
+      const radius = Math.min(0.045, Math.min(...size) * 0.12);
+      const mesh = new THREE.Mesh(new RoundedBoxGeometry(size[0], size[1], size[2], 2, radius), material);
+      mesh.position.set(...position);
+      mesh.castShadow = castShadow;
+      mesh.receiveShadow = receiveShadow;
+      parent.add(mesh);
+      return mesh;
+    };
+
+    const deck = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), patioShadowMaterial);
+    deck.rotation.x = -Math.PI / 2;
+    deck.position.y = -0.012;
+    deck.receiveShadow = true;
+    scene.add(deck);
+
+    const environment = new THREE.Group();
+    scene.add(environment);
+    const lawn = new THREE.Mesh(new THREE.PlaneGeometry(38, 32), grassMaterial);
+    lawn.rotation.x = -Math.PI / 2;
+    lawn.position.set(0, -0.09, -5);
+    lawn.receiveShadow = true;
+    environment.add(lawn);
+    addBox(environment, [12, 3.8, 0.42], [1.8, 1.86, -6.6], wallMaterial, false, true);
+    addBox(environment, [4.5, 0.34, 1.2], [1.7, 3.88, -6.25], channelMaterial, true, true);
+    addBox(environment, [4.35, 2.72, 0.08], [0.8, 1.48, -6.36], glassMaterial, false, false);
+    addBox(environment, [2.55, 2.72, 0.06], [4.35, 1.48, -6.35], warmMaterial, false, false);
+    addBox(environment, [3.1, 0.16, 0.55], [-3.6, 0.08, -5.1], stoneMaterial, false, true);
+
+    const foliageMaterial = new THREE.MeshStandardMaterial({ color: "#244734", roughness: 0.98 });
+    const trunkMaterial = new THREE.MeshStandardMaterial({ color: "#594a39", roughness: 1 });
+    const addTree = (x: number, z: number, scale: number) => {
+      const tree = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09 * scale, 0.13 * scale, 1.4 * scale, 9), trunkMaterial);
+      trunk.position.y = 0.7 * scale;
+      trunk.castShadow = true;
+      tree.add(trunk);
+      for (const [offsetX, offsetY, offsetZ, radius] of [
+        [0, 1.55, 0, 0.65], [-0.42, 1.42, 0.08, 0.46], [0.42, 1.48, -0.08, 0.52], [0.05, 1.95, 0.05, 0.5],
+      ] as const) {
+        const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(radius * scale, 1), foliageMaterial);
+        crown.position.set(offsetX * scale, offsetY * scale, offsetZ * scale);
+        crown.castShadow = true;
+        tree.add(crown);
+      }
+      tree.position.set(x, 0, z);
+      environment.add(tree);
+    };
+    addTree(-6.4, -4.9, 1.15);
+    addTree(7.5, -5.4, 1.3);
+    addTree(-7.4, 1.2, 0.9);
+
+    const pergola = new THREE.Group();
+    pergola.position.y = 0.015;
+    scene.add(pergola);
+    const postAnchors: Array<[number, number]> = [[-3, -2.05], [-3, 2.05], [3, -2.05], [3, 2.05]];
+    const boltGeometry = new THREE.CylinderGeometry(0.037, 0.037, 0.034, 18);
+    const washerGeometry = new THREE.CylinderGeometry(0.062, 0.062, 0.016, 20);
+    for (const [x, z] of postAnchors) {
+      addBox(pergola, [0.52, 0.09, 0.52], [x, 0.045, z], channelMaterial, true, true);
+      addBox(pergola, [0.34, 0.15, 0.34], [x, 0.14, z], aluminum, true, true);
+      addBox(pergola, [0.245, 3.08, 0.245], [x, 1.69, z], aluminum, true, true);
+      for (const boltX of [-0.17, 0.17]) {
+        for (const boltZ of [-0.17, 0.17]) {
+          const washer = new THREE.Mesh(washerGeometry, boltMaterial);
+          washer.position.set(x + boltX, 0.101, z + boltZ);
+          washer.castShadow = true;
+          pergola.add(washer);
+          const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+          bolt.position.set(x + boltX, 0.125, z + boltZ);
+          bolt.castShadow = true;
+          pergola.add(bolt);
+        }
+      }
+    }
+
+    addBox(pergola, [6.48, 0.34, 0.32], [0, 3.18, -2.08], aluminum);
+    addBox(pergola, [6.48, 0.34, 0.32], [0, 3.18, 2.08], aluminum);
+    addBox(pergola, [0.32, 0.34, 4.48], [-3.08, 3.18, 0], aluminum);
+    addBox(pergola, [0.32, 0.34, 4.48], [3.08, 3.18, 0], aluminum);
+    addBox(pergola, [6.08, 0.11, 0.12], [0, 3.01, -1.94], channelMaterial);
+    addBox(pergola, [6.08, 0.11, 0.12], [0, 3.01, 1.94], channelMaterial);
+    addBox(pergola, [0.16, 0.17, 3.88], [-2.89, 3.04, 0], channelMaterial);
+    addBox(pergola, [0.16, 0.17, 3.88], [2.89, 3.04, 0], channelMaterial);
+    addBox(pergola, [0.37, 0.38, 0.92], [3.15, 3.13, -1.42], channelMaterial);
+    for (const [x, z] of [[-2.82, -1.82], [-2.82, 1.82], [2.82, -1.82], [2.82, 1.82]] as const) {
+      addBox(pergola, [0.34, 0.22, 0.34], [x, 2.95, z], channelMaterial, true, true);
+    }
+
+    const louverMeshes: THREE.Mesh[] = [];
+    const louverGeometry = new RoundedBoxGeometry(5.82, 0.055, 0.235, 2, 0.018);
+    for (let index = 0; index < 18; index += 1) {
+      const blade = new THREE.Mesh(louverGeometry, louverMaterial);
+      blade.position.set(0, 3.17, -1.785 + index * 0.21);
+      blade.castShadow = true;
+      blade.receiveShadow = true;
+      pergola.add(blade);
+      louverMeshes.push(blade);
+    }
+
+    const frontLed = addBox(pergola, [5.85, 0.024, 0.035], [0, 2.98, 1.91], ledMaterial, false, false);
+    const rearLed = addBox(pergola, [5.85, 0.024, 0.035], [0, 2.98, -1.91], ledMaterial, false, false);
+    const leftLed = addBox(pergola, [0.035, 0.024, 3.62], [-2.86, 2.98, 0], ledMaterial, false, false);
+    const rightLed = addBox(pergola, [0.035, 0.024, 3.62], [2.86, 2.98, 0], ledMaterial, false, false);
+    frontLed.renderOrder = 2;
+    rearLed.renderOrder = 2;
+    leftLed.renderOrder = 2;
+    rightLed.renderOrder = 2;
+
+    for (const x of [-1.8, 1.8]) {
+      const glowPool = new THREE.Mesh(new THREE.PlaneGeometry(4.7, 4.2), glowMaterial);
+      glowPool.rotation.x = -Math.PI / 2;
+      glowPool.position.set(x, 0.006, 0);
+      glowPool.renderOrder = 3;
+      scene.add(glowPool);
+    }
+
+    const brandCanvas = document.createElement("canvas");
+    brandCanvas.width = 768;
+    brandCanvas.height = 160;
+    const brandContext = brandCanvas.getContext("2d");
+    if (brandContext) {
+      brandContext.fillStyle = "#f4f4ef";
+      brandContext.fillRect(0, 0, 768, 160);
+      brandContext.fillStyle = "#121a16";
+      brandContext.font = "700 68px Arial, sans-serif";
+      brandContext.textAlign = "center";
+      brandContext.textBaseline = "middle";
+      brandContext.fillText("COORDINATEZ", 384, 82);
+    }
+    const brandTexture = new THREE.CanvasTexture(brandCanvas);
+    brandTexture.colorSpace = THREE.SRGBColorSpace;
+    const brandPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.19), new THREE.MeshBasicMaterial({ map: brandTexture, toneMapped: false }));
+    brandPlate.position.set(0.68, 3.18, 2.245);
+    pergola.add(brandPlate);
+
+    const hemisphere = new THREE.HemisphereLight("#f7fbf7", "#314437", 2.2);
+    scene.add(hemisphere);
+    const sun = new THREE.DirectionalLight("#fff5df", 3.2);
+    sun.position.set(7, 11, 8);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1536, 1536);
+    sun.shadow.camera.left = -9;
+    sun.shadow.camera.right = 9;
+    sun.shadow.camera.top = 9;
+    sun.shadow.camera.bottom = -9;
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 32;
+    sun.shadow.bias = -0.00025;
+    scene.add(sun);
+    const rim = new THREE.DirectionalLight("#c9ff61", 0.85);
+    rim.position.set(-8, 4, -6);
+    scene.add(rim);
+    const warmLight = new THREE.PointLight("#ffbc73", 0, 14, 1.8);
+    warmLight.position.set(3.9, 2.25, -4.9);
+    scene.add(warmLight);
+    const pergolaLights = [[-1.9, 2.72, 0], [1.9, 2.72, 0]].map(([x, y, z]) => {
+      const light = new THREE.PointLight("#ffd79a", 0, 6, 2);
+      light.position.set(x, y, z);
+      scene.add(light);
+      return light;
+    });
+
+    const resize = () => {
+      const bounds = canvas.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+      renderer.setSize(bounds.width, bounds.height, false);
+      camera.aspect = bounds.width / bounds.height;
+      camera.updateProjectionMatrix();
+    };
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas);
+    resize();
+
+    let animationFrame = 0;
+    let hasRendered = false;
+    let previousFrame = performance.now();
+    const render = (now = performance.now()) => {
+      const delta = Math.min((now - previousFrame) / 1000, 0.05);
+      previousFrame = now;
+      const state = liveStateRef.current;
+      const targetColor = new THREE.Color(state.finish);
+      aluminum.color.lerp(targetColor, 0.09);
+      louverMaterial.color.lerp(targetColor.clone().offsetHSL(0, 0, -0.025), 0.09);
+      const bladeTarget = state.louversOpen ? -Math.PI * 0.46 : 0;
+      for (let index = 0; index < louverMeshes.length; index += 1) {
+        const blade = louverMeshes[index];
+        const response = Math.min(1, delta * (5.2 + index * 0.035));
+        blade.rotation.x = THREE.MathUtils.lerp(blade.rotation.x, bladeTarget, response);
+      }
+
+      const duskMix = state.dusk ? 1 : 0;
+      scene.background = state.yardVisible ? (patioTexture.image ? patioTexture : (state.dusk ? duskSky : daySky)) : studioSky;
+      scene.backgroundIntensity = THREE.MathUtils.lerp(scene.backgroundIntensity, state.dusk ? 0.56 : 1, 0.06);
+      environment.visible = false;
+      deck.material = state.yardVisible ? patioShadowMaterial : deckMaterial;
+      if (scene.fog) scene.fog.color.lerp(new THREE.Color(state.dusk ? "#23303a" : "#dfe8e1"), 0.08);
+      renderer.toneMappingExposure = THREE.MathUtils.lerp(renderer.toneMappingExposure, state.dusk ? 0.88 : 1.18, 0.06);
+      hemisphere.intensity = THREE.MathUtils.lerp(hemisphere.intensity, state.dusk ? 0.92 : 2.7, 0.07);
+      sun.intensity = THREE.MathUtils.lerp(sun.intensity, state.dusk ? 0.72 : 2.65, 0.07);
+      rim.intensity = THREE.MathUtils.lerp(rim.intensity, state.dusk ? 0.42 : 0.85, 0.07);
+      warmLight.intensity = THREE.MathUtils.lerp(warmLight.intensity, state.dusk ? 18 : 0, 0.07);
+      ledMaterial.emissiveIntensity = THREE.MathUtils.lerp(ledMaterial.emissiveIntensity, state.dusk ? 5.5 : 0.08, 0.1);
+      glowMaterial.opacity = THREE.MathUtils.lerp(glowMaterial.opacity, state.dusk ? 0.48 : 0, 0.09);
+      for (const light of pergolaLights) light.intensity = THREE.MathUtils.lerp(light.intensity, duskMix * 13, 0.09);
+
+      controls.update(delta);
+      renderer.render(scene, camera);
+      if (!hasRendered) {
+        hasRendered = true;
+        window.setTimeout(() => setViewerReady(true), 260);
+      }
+      animationFrame = requestAnimationFrame(render);
+    };
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      controls.removeEventListener("start", stopAutoRotate);
+      controls.dispose();
+      cameraRef.current = null;
+      controlsRef.current = null;
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) material.dispose();
+      });
+      woodTexture.dispose();
+      glowTexture.dispose();
+      daySky.dispose();
+      duskSky.dispose();
+      studioSky.dispose();
+      patioTexture.dispose();
+      brandTexture.dispose();
+      physicalEnvironment.dispose();
+      pmremGenerator.dispose();
+      renderer.dispose();
+    };
+  }, []);
+
+  if (webglFailed) {
+    return <PergolaViewer finish={finish} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} />;
+  }
+
+  return (
+    <div className="viewer-shell viewer-shell-real">
+      <div className={`viewer-loader ${viewerReady ? "is-ready" : ""}`} aria-hidden="true">
+        <span>COORDINATEZ / PHYSICAL VIEW</span><i />
+      </div>
+      <div className="viewer-topline">
+        <span><i /> Real-time 3D model</span>
+        <button onClick={resetView} aria-label="Reset 3D view">Reset view ↗</button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="product-canvas"
+        aria-label="Interactive three-dimensional model of the Coordinatez Axis pergola. Drag to orbit and scroll to zoom."
+      />
+      <div className="viewer-badge">WebGL physical materials</div>
+    </div>
+  );
+}
+
 function Toggle({
   active,
   onChange,
@@ -625,7 +1112,7 @@ export function ProductStudio() {
       <main id="top">
         <section className="product-section" id="configure">
           <div className="visual-column">
-            <PergolaViewer
+            <RealPergolaViewer
               finish={finishes[selectedFinish].value}
               louversOpen={louversOpen}
               yardVisible={yardVisible}
@@ -1050,6 +1537,16 @@ export default function Home() {
   }, [searchQuery]);
 
   useEffect(() => {
+    const studio = new URLSearchParams(window.location.search).get("studio");
+    if (!studio) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (studio === "pro") setSelectedModel(modelRanges[0].models[1]);
+      setStudioOpen(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setInterval(
       () => setAnnouncementIndex((current) => (current + 1) % announcementSlides.length),
@@ -1293,7 +1790,7 @@ export default function Home() {
           <section className="model-studio-dialog" role="dialog" aria-modal="true" aria-labelledby="studio-model-title">
             <button className="studio-close" onClick={() => setStudioOpen(false)} aria-label="Close 3D studio">×</button>
             <div className="studio-visual">
-              <PergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} />
+              <RealPergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} />
               <div className="viewer-controls" aria-label="3D model controls">
                 <Toggle active={louversOpen} onChange={() => setLouversOpen(!louversOpen)} label="Open louvers" />
                 <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Yard visible" />
