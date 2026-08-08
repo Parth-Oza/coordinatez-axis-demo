@@ -47,6 +47,27 @@ const finishes = [
   { name: "Sand", value: "#a78d67" },
 ];
 
+const announcementSlides = [
+  {
+    title: "Summer studio",
+    copy: "Complimentary delivery on every Axis configuration.",
+    action: "Explore the system →",
+    href: "#configure",
+  },
+  {
+    title: "Find your structure",
+    copy: "Match the footprint, finish and climate package to your space.",
+    action: "Configure now →",
+    href: "#configure",
+  },
+  {
+    title: "Live design review",
+    copy: "Bring your dimensions to a one-to-one studio consultation.",
+    action: "Start a project →",
+    href: "#contact",
+  },
+];
+
 const featureCards = [
   {
     index: "01",
@@ -107,6 +128,12 @@ function PergolaViewer({
   const lastRef = useRef({ x: 0, y: 0 });
   const userMovedRef = useRef(false);
   const bladeAngleRef = useRef(0.08);
+  const [viewerReady, setViewerReady] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setViewerReady(true), 760);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const resetView = useCallback(() => {
     yawRef.current = -0.55;
@@ -144,11 +171,101 @@ function PergolaViewer({
       bladeAngleRef.current += (targetAngle - bladeAngleRef.current) * Math.min(0.14, elapsed * 0.0045);
 
       context.clearRect(0, 0, width, height);
-      if (!yardVisible) {
+      if (yardVisible) {
+        const parallax = (yawRef.current + 0.55) * -52 + (reducedMotion ? 0 : Math.sin(now * 0.00014) * 6);
+        const horizon = height * 0.66;
+        const sky = context.createLinearGradient(0, 0, 0, horizon);
+        if (dusk) {
+          sky.addColorStop(0, "#162536");
+          sky.addColorStop(0.64, "#58606a");
+          sky.addColorStop(1, "#a07a5f");
+        } else {
+          sky.addColorStop(0, "#f8f8f5");
+          sky.addColorStop(0.62, "#ecefeb");
+          sky.addColorStop(1, "#d9d9d2");
+        }
+        context.fillStyle = sky;
+        context.fillRect(0, 0, width, horizon);
+
+        context.fillStyle = dusk ? "#343b3e" : "#858883";
+        context.fillRect(0, height * 0.43, width, height * 0.22);
+        context.fillStyle = dusk ? "#20282a" : "#4f5551";
+        context.fillRect(0, height * 0.61, width, height * 0.018);
+        context.fillStyle = dusk ? "#68706f" : "#d6dad6";
+        context.fillRect(0, height * 0.629, width, height * 0.035);
+
+        const houseX = width * 0.71 + parallax * 0.36;
+        context.fillStyle = dusk ? "#202b2d" : "#262e2d";
+        context.fillRect(houseX - width * 0.08, height * 0.34, width * 0.36, height * 0.035);
+        context.fillStyle = dusk ? "#696258" : "#a28e72";
+        context.fillRect(houseX, height * 0.375, width * 0.29, height * 0.25);
+        context.strokeStyle = dusk ? "rgba(255,210,144,.13)" : "rgba(62,49,36,.18)";
+        context.lineWidth = 1;
+        for (let x = houseX + 5; x < houseX + width * 0.29; x += 9) {
+          context.beginPath();
+          context.moveTo(x, height * 0.375);
+          context.lineTo(x, height * 0.625);
+          context.stroke();
+        }
+        context.fillStyle = dusk ? "#131d21" : "#555a57";
+        context.fillRect(houseX + width * 0.12, height * 0.405, width * 0.11, height * 0.22);
+        if (dusk) {
+          const windowGlow = context.createLinearGradient(0, height * 0.405, 0, height * 0.625);
+          windowGlow.addColorStop(0, "rgba(255,218,158,.78)");
+          windowGlow.addColorStop(1, "rgba(170,106,52,.35)");
+          context.fillStyle = windowGlow;
+          context.fillRect(houseX + width * 0.125, height * 0.412, width * 0.1, height * 0.2);
+        }
+
+        const drawTree = (x: number, y: number, scale: number) => {
+          context.save();
+          context.translate(x + parallax * scale * 0.2, y);
+          context.strokeStyle = dusk ? "rgba(15,25,25,.88)" : "rgba(58,66,61,.72)";
+          context.fillStyle = dusk ? "rgba(23,39,35,.82)" : "rgba(99,112,101,.68)";
+          context.lineWidth = Math.max(1, scale * 2.2);
+          context.beginPath();
+          context.moveTo(0, 0);
+          context.lineTo(0, -66 * scale);
+          context.moveTo(0, -39 * scale);
+          context.lineTo(-28 * scale, -71 * scale);
+          context.moveTo(0, -50 * scale);
+          context.lineTo(31 * scale, -86 * scale);
+          context.stroke();
+          for (const [cx, cy, radius] of [[-25, -70, 23], [4, -87, 28], [31, -69, 22], [1, -57, 27]] as const) {
+            context.beginPath();
+            context.arc(cx * scale, cy * scale, radius * scale, 0, Math.PI * 2);
+            context.fill();
+          }
+          context.restore();
+        };
+        drawTree(width * 0.08, height * 0.56, 0.72);
+        drawTree(width * 0.61, height * 0.56, 1.08);
+        drawTree(width * 0.93, height * 0.58, 0.82);
+
+        const deck = context.createLinearGradient(0, horizon, 0, height);
+        deck.addColorStop(0, dusk ? "#594d42" : "#a98d6c");
+        deck.addColorStop(1, dusk ? "#2e2925" : "#80664d");
+        context.fillStyle = deck;
+        context.fillRect(0, horizon, width, height - horizon);
+        context.strokeStyle = dusk ? "rgba(239,205,169,.1)" : "rgba(69,47,31,.22)";
+        context.lineWidth = 1;
+        for (let y = horizon + 7; y < height; y += 9) {
+          context.beginPath();
+          context.moveTo(0, y);
+          context.lineTo(width, y + Math.sin(y * 0.045) * 1.6);
+          context.stroke();
+        }
+        const lightSweep = context.createLinearGradient(width * 0.05 + parallax, horizon, width * 0.76 + parallax, height);
+        lightSweep.addColorStop(0, "rgba(255,255,255,0)");
+        lightSweep.addColorStop(0.5, dusk ? "rgba(255,177,82,.08)" : "rgba(255,244,210,.2)");
+        lightSweep.addColorStop(1, "rgba(255,255,255,0)");
+        context.fillStyle = lightSweep;
+        context.fillRect(0, horizon, width, height - horizon);
+      } else {
         const studio = context.createLinearGradient(0, 0, 0, height);
-        studio.addColorStop(0, dusk ? "#242a2a" : "#ecefeb");
-        studio.addColorStop(0.58, dusk ? "#3d413e" : "#e2e0d9");
-        studio.addColorStop(1, dusk ? "#171b1a" : "#c7bba7");
+        studio.addColorStop(0, dusk ? "#242a2a" : "#ffffff");
+        studio.addColorStop(0.72, dusk ? "#343a38" : "#f7f7f4");
+        studio.addColorStop(1, dusk ? "#171b1a" : "#e9e7e1");
         context.fillStyle = studio;
         context.fillRect(0, 0, width, height);
       }
@@ -268,6 +385,18 @@ function PergolaViewer({
         context.stroke();
       }
 
+      const brandMark = project({ x: 112, y: -116, z: 226 });
+      context.save();
+      context.translate(brandMark.x, brandMark.y);
+      context.fillStyle = dusk ? "rgba(241,244,241,.9)" : "rgba(239,242,238,.92)";
+      context.fillRect(-37, -8, 74, 16);
+      context.fillStyle = "#18201c";
+      context.font = "700 7px Arial, sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText("COORDINATEZ", 0, 0);
+      context.restore();
+
       context.fillStyle = dusk ? "rgba(255,255,255,.72)" : "rgba(20,27,24,.64)";
       context.font = "500 11px Arial, sans-serif";
       context.letterSpacing = "1px";
@@ -302,10 +431,9 @@ function PergolaViewer({
 
   return (
     <div className="viewer-shell">
-      <div
-        className={`viewer-environment ${yardVisible ? "is-visible" : ""} ${dusk ? "is-dusk" : ""}`}
-        aria-hidden="true"
-      />
+      <div className={`viewer-loader ${viewerReady ? "is-ready" : ""}`} aria-hidden="true">
+        <span>COORDINATEZ</span><i />
+      </div>
       <div className="viewer-topline">
         <span><i /> Interactive 3D model</span>
         <button onClick={resetView} aria-label="Reset 3D view">Reset view ↗</button>
@@ -353,6 +481,7 @@ export default function Home() {
   const [toast, setToast] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
   const [brief, setBrief] = useState<BriefForm>(emptyBrief);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [submitState, setSubmitState] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [reference, setReference] = useState("");
@@ -369,6 +498,15 @@ export default function Home() {
     );
     document.querySelectorAll(".reveal").forEach((element) => reveal.observe(element));
     return () => reveal.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(
+      () => setAnnouncementIndex((current) => (current + 1) % announcementSlides.length),
+      4800,
+    );
+    return () => window.clearInterval(timer);
   }, []);
 
   const addToBrief = () => {
@@ -429,9 +567,13 @@ export default function Home() {
     <div className={dusk ? "site dusk-mode" : "site"}>
       <div className="scroll-line" aria-hidden="true" />
       <div className="announcement">
-        <span>THE SUMMER STUDIO</span>
-        <p>Complimentary delivery on every Axis configuration.</p>
-        <a href="#configure">Explore the system →</a>
+        <div className="announcement-copy" key={announcementIndex}>
+          <span>{announcementSlides[announcementIndex].title}</span>
+          <p>{announcementSlides[announcementIndex].copy}</p>
+          <a href={announcementSlides[announcementIndex].href}>{announcementSlides[announcementIndex].action}</a>
+        </div>
+        <div className="announcement-art" aria-hidden="true"><i /><i /><i /><span>AXIS</span></div>
+        <div className="announcement-progress" aria-hidden="true" />
       </div>
 
       <header className="site-header">
