@@ -50,6 +50,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   ]);
 
   await access(new URL("../public/models-triptych.jpg", import.meta.url));
+  await access(new URL("../public/hero-triptych-v2.jpg", import.meta.url));
   assert.match(page, /<PergolaViewer/);
   assert.match(page, /model-studio-dialog/);
   assert.match(page, /IntersectionObserver/);
@@ -57,7 +58,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /\/api\/subscribers/);
   assert.match(page, /model-search-dialog/);
   assert.match(css, /models-triptych\.jpg/);
-  assert.match(css, /url\("\/og\.png"\)/);
+  assert.match(css, /url\("\/hero-triptych-v2\.jpg"\)/);
   assert.match(css, /hero-louver/);
   assert.match(css, /scroll-snap-type:\s*x mandatory/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);

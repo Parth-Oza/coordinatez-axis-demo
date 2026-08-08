@@ -1006,6 +1006,7 @@ export default function Home() {
   const [toast, setToast] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [heroScene, setHeroScene] = useState(0);
   const [trayCount, setTrayCount] = useState(0);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterState, setNewsletterState] = useState<"idle" | "sending" | "success" | "error">("idle");
@@ -1167,8 +1168,20 @@ export default function Home() {
       </header>
 
       <main className="compare-main" id="top">
-        <section className="compare-hero" onPointerMove={moveHeroLight}>
+        <section className={`compare-hero hero-scene-${heroScene}`} onPointerMove={moveHeroLight}>
           <div className="hero-ambient" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
+          <div className="hero-scenes" aria-label="Explore project environments">
+            {["Desert", "Woodland", "Coast"].map((scene, index) => (
+              <button
+                className={heroScene === index ? "is-active" : ""}
+                key={scene}
+                onClick={() => setHeroScene(index)}
+                aria-pressed={heroScene === index}
+              >
+                <small>0{index + 1}</small>{scene}
+              </button>
+            ))}
+          </div>
           <div className="hero-copy">
             <div className="hero-status"><i /> Interactive model range · Four systems online</div>
             <h1>Shape the light.<br /><em>Own the outside.</em></h1>
