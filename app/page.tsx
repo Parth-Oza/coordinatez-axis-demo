@@ -6,11 +6,33 @@ import {
   useMemo,
   useRef,
   useState,
+  type FormEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+declare const __BRIEF_API_URL_B64__: string | undefined;
+
 type Vec3 = { x: number; y: number; z: number };
 type Face = { points: { x: number; y: number }[]; depth: number; color: string };
+type BriefForm = {
+  name: string;
+  email: string;
+  phone: string;
+  postalCode: string;
+  notes: string;
+  consent: boolean;
+  companyWebsite: string;
+};
+
+const emptyBrief: BriefForm = {
+  name: "",
+  email: "",
+  phone: "",
+  postalCode: "",
+  notes: "",
+  consent: false,
+  companyWebsite: "",
+};
 
 const sizes = [
   { label: "10′ × 10′", meta: "4 posts", price: 6890 },
@@ -362,6 +384,11 @@ export default function Home() {
   const [screens, setScreens] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [brief, setBrief] = useState<BriefForm>(emptyBrief);
+  const [submitState, setSubmitState] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [reference, setReference] = useState("");
 
   const total = useMemo(
     () => sizes[selectedSize].price + (heater ? 798 : 0) + (screens ? 1190 : 0),
@@ -378,8 +405,57 @@ export default function Home() {
   }, []);
 
   const addToBrief = () => {
-    setToast(true);
-    window.setTimeout(() => setToast(false), 3200);
+    setSubmitState("idle");
+    setSubmitMessage("");
+    setBriefOpen(true);
+  };
+
+  useEffect(() => {
+    if (!briefOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && setBriefOpen(false);
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [briefOpen]);
+
+  const submitBrief = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitState("sending");
+    setSubmitMessage("");
+    const apiBase = typeof __BRIEF_API_URL_B64__ === "string" ? window.atob(__BRIEF_API_URL_B64__).replace(/\/$/, "") : "";
+
+    try {
+      const response = await fetch(`${apiBase}/api/briefs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...brief,
+          configuration: {
+            product: "AXIS Motorized Pergola",
+            finish: finishes[selectedFinish].name,
+            size: sizes[selectedSize].label,
+            price: total,
+            louversOpen,
+            eveningLight: dusk,
+            heaters: heater,
+            privacyScreen: screens,
+          },
+        }),
+      });
+      const result = (await response.json()) as { error?: string; reference?: string };
+      if (!response.ok) throw new Error(result.error || "We could not send your project brief.");
+      setReference(result.reference ?? "RECEIVED");
+      setSubmitState("success");
+      setToast(true);
+      window.setTimeout(() => setToast(false), 3600);
+    } catch (error) {
+      setSubmitMessage(error instanceof Error ? error.message : "We could not send your project brief.");
+      setSubmitState("error");
+    }
   };
 
   return (
@@ -502,7 +578,7 @@ export default function Home() {
             <div className="purchase-block">
               <div><span>Configured total</span><strong>{money(total)}</strong></div>
               <button onClick={addToBrief}>Add to project brief <span>→</span></button>
-              <p><i /> This is an interactive client concept. No checkout is processed.</p>
+              <p><i /> Your configuration is attached automatically.</p>
             </div>
           </div>
         </section>
@@ -614,8 +690,66 @@ export default function Home() {
         <div className="footer-note"><p>A high-fidelity demonstration experience built for a client presentation.</p><span>© 2026 Coordinatez Demo</span></div>
       </footer>
 
+      {briefOpen && (
+        <div className="brief-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setBriefOpen(false)}>
+          <aside className="brief-panel" role="dialog" aria-modal="true" aria-labelledby="brief-title">
+            <div className="brief-header">
+              <div><span>Coordinatez project studio</span><b>{sizes[selectedSize].label} · {finishes[selectedFinish].name}</b></div>
+              <button onClick={() => setBriefOpen(false)} aria-label="Close project brief">×</button>
+            </div>
+
+            {submitState === "success" ? (
+              <div className="brief-success" aria-live="polite">
+                <i>✓</i>
+                <span>Project brief received</span>
+                <h2>We have your<br />configuration.</h2>
+                <p>A studio specialist can now review your Axis selections and follow up using the contact details you provided.</p>
+                <div><small>Reference</small><strong>{reference}</strong></div>
+                <button onClick={() => { setBriefOpen(false); setBrief(emptyBrief); }}>Return to the studio →</button>
+              </div>
+            ) : (
+              <form className="brief-form" onSubmit={submitBrief}>
+                <div className="brief-intro">
+                  <span>Start your project</span>
+                  <h2>Bring us<br />your outside.</h2>
+                  <p>Share a few details and the complete configuration will arrive with your request.</p>
+                </div>
+
+                <div className="brief-summary">
+                  <span><small>Model</small><b>AXIS</b></span>
+                  <span><small>Footprint</small><b>{sizes[selectedSize].label}</b></span>
+                  <span><small>Finish</small><b>{finishes[selectedFinish].name}</b></span>
+                  <span><small>Estimate</small><b>{money(total)}</b></span>
+                </div>
+
+                <div className="form-grid">
+                  <label><span>Name *</span><input required minLength={2} maxLength={100} autoComplete="name" value={brief.name} onChange={(event) => setBrief({ ...brief, name: event.target.value })} placeholder="Your name" /></label>
+                  <label><span>Email *</span><input required type="email" maxLength={180} autoComplete="email" value={brief.email} onChange={(event) => setBrief({ ...brief, email: event.target.value })} placeholder="you@example.com" /></label>
+                  <label><span>Phone</span><input type="tel" maxLength={40} autoComplete="tel" value={brief.phone} onChange={(event) => setBrief({ ...brief, phone: event.target.value })} placeholder="(555) 000-0000" /></label>
+                  <label><span>Project ZIP</span><input maxLength={20} autoComplete="postal-code" value={brief.postalCode} onChange={(event) => setBrief({ ...brief, postalCode: event.target.value })} placeholder="00000" /></label>
+                  <label className="full"><span>Tell us about the space</span><textarea maxLength={2500} rows={4} value={brief.notes} onChange={(event) => setBrief({ ...brief, notes: event.target.value })} placeholder="Dimensions, surface, timing, or anything we should know…" /></label>
+                  <label className="form-trap" aria-hidden="true"><span>Website</span><input tabIndex={-1} autoComplete="off" value={brief.companyWebsite} onChange={(event) => setBrief({ ...brief, companyWebsite: event.target.value })} /></label>
+                </div>
+
+                <label className="brief-consent">
+                  <input type="checkbox" required checked={brief.consent} onChange={(event) => setBrief({ ...brief, consent: event.target.checked })} />
+                  <span />
+                  <p>I agree that Coordinatez may contact me about this project request.</p>
+                </label>
+
+                {submitState === "error" && <p className="brief-error" role="alert">{submitMessage}</p>}
+                <button className="brief-submit" type="submit" disabled={submitState === "sending"}>
+                  <span>{submitState === "sending" ? "Sending project…" : "Send project brief"}</span><b>→</b>
+                </button>
+                <p className="brief-privacy">Your details are used only to respond to this project request.</p>
+              </form>
+            )}
+          </aside>
+        </div>
+      )}
+
       <div className={`toast ${toast ? "is-visible" : ""}`} role="status">
-        <i>✓</i><div><b>Configuration saved</b><span>{finishes[selectedFinish].name} · {sizes[selectedSize].label} · {money(total)}</span></div>
+        <i>✓</i><div><b>Project brief received</b><span>{finishes[selectedFinish].name} · {sizes[selectedSize].label} · {money(total)}</span></div>
       </div>
     </div>
   );

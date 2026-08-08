@@ -9,6 +9,9 @@ export default defineConfig({
   base: "/coordinatez-axis-demo/",
   publicDir: projectPath("./public"),
   plugins: [react()],
+  define: {
+    __BRIEF_API_URL_B64__: JSON.stringify(process.env.BRIEF_API_URL_B64 ?? ""),
+  },
   build: {
     outDir: projectPath("./docs"),
     emptyOutDir: true,
