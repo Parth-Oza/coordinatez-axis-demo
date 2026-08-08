@@ -352,9 +352,14 @@ function PergolaViewer({
       };
 
       const postZ = 110;
-      for (const x of [-186, 186]) {
-        for (const y of [-103, 103]) {
-          addBox({ x, y, z: postZ }, { x: 18, y: 18, z: 220 }, finish);
+      const postAnchors = [-186, 186].flatMap((x) => [-103, 103].map((y) => ({ x, y })));
+      const anchorBolts: Vec3[] = [];
+      for (const { x, y } of postAnchors) {
+        addBox({ x, y, z: 3 }, { x: 34, y: 34, z: 6 }, shade(finish, -8));
+        addBox({ x, y, z: 8 }, { x: 24, y: 24, z: 10 }, shade(finish, 4));
+        addBox({ x, y, z: postZ }, { x: 18, y: 18, z: 220 }, finish);
+        for (const boltX of [-11, 11]) {
+          for (const boltY of [-11, 11]) anchorBolts.push({ x: x + boltX, y: y + boltY, z: 6.2 });
         }
       }
       addBox({ x: 0, y: -103, z: 222 }, { x: 390, y: 22, z: 26 }, finish);
@@ -382,6 +387,18 @@ function PergolaViewer({
         context.fill();
         context.strokeStyle = dusk ? "rgba(255,255,255,.035)" : "rgba(23,29,27,.08)";
         context.lineWidth = 0.55;
+        context.stroke();
+      }
+
+      for (const bolt of anchorBolts) {
+        const point = project(bolt);
+        const radius = Math.max(1.15, scaleBase * 1.55);
+        context.beginPath();
+        context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        context.fillStyle = dusk ? "#121716" : "#242a28";
+        context.fill();
+        context.strokeStyle = dusk ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.5)";
+        context.lineWidth = .65;
         context.stroke();
       }
 
