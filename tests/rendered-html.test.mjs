@@ -53,6 +53,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   await access(new URL("../public/hero-triptych-v2.jpg", import.meta.url));
   await access(new URL("../public/coordinatez-patio-environment.jpg", import.meta.url));
   await access(new URL("../public/coordinatez-patio-panorama-v2.png", import.meta.url));
+  await access(new URL("../public/coordinatez-desert-panorama.png", import.meta.url));
   assert.match(page, /<RealPergolaViewer/);
   assert.match(page, /THREE\.WebGLRenderer/);
   assert.match(page, /OrbitControls/);
@@ -71,6 +72,12 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /addScreenAssembly\("rear"/);
   assert.match(page, /addScreenAssembly\("left"/);
   assert.match(page, /addScreenAssembly\("right"/);
+  assert.match(page, /windowedScreenMaterial/);
+  assert.match(page, /playMechanismSound/);
+  assert.match(page, /ThemePicker/);
+  assert.match(page, /coordinatez-desert-panorama\.png/);
+  assert.match(page, /addLoungeChair/);
+  assert.match(page, /barbecue/);
   assert.match(page, /model-studio-dialog/);
   assert.match(page, /IntersectionObserver/);
   assert.match(page, /\/api\/briefs/);

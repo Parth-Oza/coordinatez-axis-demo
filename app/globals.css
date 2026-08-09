@@ -136,6 +136,14 @@ a { color: inherit; text-decoration: none; }
 .wall-side-glyph.is-left::after { top: -2px; bottom: -2px; left: -3px; width: 3px; }
 .wall-side-glyph.is-right::after { top: -2px; right: -3px; bottom: -2px; width: 3px; }
 .wall-side-options button.is-selected .wall-side-glyph::after { background: var(--lime); }
+.theme-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.theme-options button { min-width: 0; min-height: 72px; padding: 8px; display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 10px; border: 1px solid rgba(0,0,0,.16); background: white; cursor: pointer; text-align: left; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.theme-options button:hover { border-color: #315e47; transform: translateY(-1px); }.theme-options button.is-selected { border-color: #17251d; box-shadow: inset 0 0 0 1px #17251d; }
+.theme-options button > span { min-width: 0; display: flex; flex-direction: column; gap: 5px; }.theme-options b{font-size:10px;text-transform:capitalize}.theme-options small{overflow:hidden;color:#7a827d;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.theme-swatch { position: relative; width: 62px; height: 50px; display: block; overflow: hidden; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.theme-swatch::before { content: ""; position: absolute; left: -5px; right: -5px; bottom: -14px; height: 31px; border-radius: 50%; }
+.theme-swatch.is-garden { background: linear-gradient(#b7d9df 0 54%,#789473 55%); }.theme-swatch.is-garden::before{background:#315942;box-shadow:22px -9px 0 #466c51,45px 2px 0 #668157}
+.theme-swatch.is-desert { background: linear-gradient(#dce7e8 0 51%,#bd8058 52% 68%,#d9b280 69%); }.theme-swatch.is-desert::before{background:#966448;box-shadow:24px -5px 0 #b67951,46px 1px 0 #805844}
 .purchase-block { margin-top: 26px; padding: 22px; color: white; background: #173429; }
 .purchase-block > div { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 17px; }
 .purchase-block > div span { color: #b8c4be; font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
@@ -487,7 +495,7 @@ footer > div:not(.footer-brand) { display:flex;flex-direction:column;align-items
 @media (max-width: 520px) {
   .announcement { min-height:48px;padding:0 18px}.announcement-copy{grid-template-columns:1fr auto;gap:12px;padding-right:0}.announcement-copy>span{font-size:8px}.announcement-copy a{font-size:8px}.announcement-art{display:none}
   .site-header { padding: 0 18px; }.brand{font-size:20px}
-  .viewer-shell{height:58vh;min-height:420px}.viewer-topline{top:18px;left:18px;right:18px}.viewer-badge{display:none}.viewer-controls{padding:13px 10px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;overflow:visible}.toggle{min-width:0;flex-direction:column;justify-content:center;gap:6px;font-size:8px;text-align:center}
+  .viewer-shell{height:58vh;min-height:420px}.viewer-topline{top:18px;left:18px;right:18px}.viewer-badge{display:none}.viewer-controls{padding:13px 10px;display:grid;grid-template-columns:repeat(2,1fr);gap:4px;overflow:visible}.toggle{min-width:0;flex-direction:column;justify-content:center;gap:6px;font-size:8px;text-align:center}
   .configurator h1 { font-size: 42px; }.finish-options{grid-template-columns:1fr}.finish-options button{min-height:48px}.size-grid{grid-template-columns:1fr 1fr}.purchase-block{margin-left:-5vw;margin-right:-5vw;padding:22px 5vw}
   .performance-section{padding-top:90px}.performance-intro h2,.detail-copy h2,.models-heading h2,.process-copy h2{font-size:53px}.sun-dial{height:280px}.sun{width:170px;height:170px}.dial-structure{height:130px}
   .numbers-section div{padding:35px 6vw}.numbers-section strong{font-size:38px}
@@ -538,7 +546,7 @@ footer > div:not(.footer-brand) { display:flex;flex-direction:column;align-items
   .model-studio-backdrop { padding: 0; }
   .model-studio-dialog { width: 100vw; height: 100vh; }
   .studio-visual { height: 48vh; min-height: 360px; }
-  .studio-visual .viewer-controls { bottom: 13px; padding-left: 8px; padding-right: 8px; display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
+  .studio-visual .viewer-controls { bottom: 13px; padding-left: 8px; padding-right: 8px; display: grid; grid-template-columns: repeat(2,1fr); gap: 5px; }
   .studio-visual .toggle { min-width: 0; padding: 7px 3px; flex-direction: column; gap: 5px; font-size: 7px; }
   .studio-panel { padding: 38px 20px 30px; }
   .studio-panel > h2 { font-size: 39px; }
