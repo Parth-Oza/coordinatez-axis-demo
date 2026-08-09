@@ -107,6 +107,11 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /showroomScenes/);
   assert.match(page, /InstallationChecker/);
   assert.match(page, /ProductStudio/);
+  assert.match(page, /requestSession\("immersive-ar"/);
+  assert.match(page, /requestHitTestSource/);
+  assert.match(page, /getUserMedia/);
+  assert.match(page, /realScale/);
+  assert.match(page, /ar-launch-button/);
   assert.match(css, /models-triptych\.jpg/);
   assert.match(css, /url\("\/hero-triptych-v2\.jpg"\)/);
   assert.match(css, /hero-louver/);
