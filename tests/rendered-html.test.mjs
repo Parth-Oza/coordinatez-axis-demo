@@ -66,7 +66,11 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /contactShadowMaterial/);
   assert.match(page, /sideWallParts/);
   assert.match(page, /screenTexture/);
-  assert.match(page, /label="Side walls"/);
+  assert.match(page, /WallSidePicker/);
+  assert.match(page, /addScreenAssembly\("front"/);
+  assert.match(page, /addScreenAssembly\("rear"/);
+  assert.match(page, /addScreenAssembly\("left"/);
+  assert.match(page, /addScreenAssembly\("right"/);
   assert.match(page, /model-studio-dialog/);
   assert.match(page, /IntersectionObserver/);
   assert.match(page, /\/api\/briefs/);

@@ -18,6 +18,8 @@ declare const __BRIEF_API_URL_B64__: string | undefined;
 
 type Vec3 = { x: number; y: number; z: number };
 type Face = { points: { x: number; y: number }[]; depth: number; color: string };
+type WallSide = "front" | "rear" | "left" | "right";
+type WallSelections = Record<WallSide, boolean>;
 type BriefForm = {
   name: string;
   email: string;
@@ -27,6 +29,24 @@ type BriefForm = {
   consent: boolean;
   companyWebsite: string;
 };
+
+const defaultWallSelections: WallSelections = {
+  front: false,
+  rear: true,
+  left: true,
+  right: false,
+};
+
+const wallSideOptions: Array<{ side: WallSide; label: string }> = [
+  { side: "front", label: "Front" },
+  { side: "rear", label: "Rear" },
+  { side: "left", label: "Left" },
+  { side: "right", label: "Right" },
+];
+
+function selectedWallCount(walls: WallSelections) {
+  return wallSideOptions.reduce((count, option) => count + (walls[option.side] ? 1 : 0), 0);
+}
 
 const emptyBrief: BriefForm = {
   name: "",
@@ -491,25 +511,25 @@ function RealPergolaViewer({
   yardVisible,
   dusk,
   sizeIndex,
-  sideWalls,
+  wallSides,
 }: {
   finish: string;
   louversOpen: boolean;
   yardVisible: boolean;
   dusk: boolean;
   sizeIndex: number;
-  sideWalls: boolean;
+  wallSides: WallSelections;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, sideWalls });
+  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, wallSides });
   const [viewerReady, setViewerReady] = useState(false);
   const [webglFailed, setWebglFailed] = useState(false);
 
   useEffect(() => {
-    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, sideWalls };
-  }, [dusk, finish, louversOpen, sideWalls, yardVisible]);
+    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, wallSides };
+  }, [dusk, finish, louversOpen, wallSides, yardVisible]);
 
   const resetView = useCallback(() => {
     const camera = cameraRef.current;
@@ -973,6 +993,8 @@ function RealPergolaViewer({
     addBox(pergola, [0.1, 0.29, 0.025], [halfWidth, 0.38, halfDepth + 0.131], gasketMaterial, false, false);
 
     type SideWallPart = {
+      side: WallSide;
+      assembly: THREE.Group;
       panel: THREE.Mesh;
       bottomRail: THREE.Mesh;
       topY: number;
@@ -984,28 +1006,34 @@ function RealPergolaViewer({
     const screenBottomY = 0.2;
     const screenHeight = screenTopY - screenBottomY;
     const addScreenAssembly = (
-      axis: "rear" | "side",
+      side: WallSide,
       center: number,
       span: number,
     ) => {
+      const assembly = new THREE.Group();
+      pergola.add(assembly);
+      const horizontal = side === "front" || side === "rear";
       const clearSpan = Math.max(0.8, span - 0.14);
-      const initialDeployment = liveStateRef.current.sideWalls ? 1 : 0.012;
-      const rearZ = -halfDepth + 0.135;
-      const sideX = -halfWidth + 0.135;
+      const initialDeployment = liveStateRef.current.wallSides[side] ? 1 : 0.012;
+      const wallZ = side === "rear" ? -halfDepth + 0.135 : halfDepth - 0.135;
+      const wallX = side === "left" ? -halfWidth + 0.135 : halfWidth - 0.135;
+      const inwardZ = side === "rear" ? 1 : -1;
+      const inwardX = side === "left" ? 1 : -1;
+      assembly.visible = liveStateRef.current.wallSides[side];
 
-      if (axis === "rear") {
-        addBox(pergola, [span, 0.21, 0.24], [center, screenTopY + 0.015, rearZ], aluminum, true, true);
-        addBox(pergola, [span - 0.12, 0.055, 0.035], [center, screenTopY - 0.1, rearZ + 0.135], channelMaterial, false, false);
+      if (horizontal) {
+        addBox(assembly, [span, 0.21, 0.24], [center, screenTopY + 0.015, wallZ], aluminum, true, true);
+        addBox(assembly, [span - 0.12, 0.055, 0.035], [center, screenTopY - 0.1, wallZ + inwardZ * 0.135], channelMaterial, false, false);
         for (const edge of [-span / 2, span / 2]) {
-          addBox(pergola, [0.075, screenHeight + 0.03, 0.115], [center + edge, (screenTopY + screenBottomY) / 2, rearZ], aluminum, true, true);
-          addBox(pergola, [0.022, screenHeight - 0.12, 0.025], [center + edge + Math.sign(-edge || 1) * 0.045, (screenTopY + screenBottomY) / 2, rearZ + 0.065], gasketMaterial, false, false);
+          addBox(assembly, [0.075, screenHeight + 0.03, 0.115], [center + edge, (screenTopY + screenBottomY) / 2, wallZ], aluminum, true, true);
+          addBox(assembly, [0.022, screenHeight - 0.12, 0.025], [center + edge + Math.sign(-edge || 1) * 0.045, (screenTopY + screenBottomY) / 2, wallZ + inwardZ * 0.065], gasketMaterial, false, false);
         }
       } else {
-        addBox(pergola, [0.24, 0.21, span], [sideX, screenTopY + 0.015, center], aluminum, true, true);
-        addBox(pergola, [0.035, 0.055, span - 0.12], [sideX + 0.135, screenTopY - 0.1, center], channelMaterial, false, false);
+        addBox(assembly, [0.24, 0.21, span], [wallX, screenTopY + 0.015, center], aluminum, true, true);
+        addBox(assembly, [0.035, 0.055, span - 0.12], [wallX + inwardX * 0.135, screenTopY - 0.1, center], channelMaterial, false, false);
         for (const edge of [-span / 2, span / 2]) {
-          addBox(pergola, [0.115, screenHeight + 0.03, 0.075], [sideX, (screenTopY + screenBottomY) / 2, center + edge], aluminum, true, true);
-          addBox(pergola, [0.025, screenHeight - 0.12, 0.022], [sideX + 0.065, (screenTopY + screenBottomY) / 2, center + edge + Math.sign(-edge || 1) * 0.045], gasketMaterial, false, false);
+          addBox(assembly, [0.115, screenHeight + 0.03, 0.075], [wallX, (screenTopY + screenBottomY) / 2, center + edge], aluminum, true, true);
+          addBox(assembly, [0.025, screenHeight - 0.12, 0.022], [wallX + inwardX * 0.065, (screenTopY + screenBottomY) / 2, center + edge + Math.sign(-edge || 1) * 0.045], gasketMaterial, false, false);
         }
       }
 
@@ -1015,27 +1043,31 @@ function RealPergolaViewer({
       panel.castShadow = true;
       panel.receiveShadow = true;
       panel.renderOrder = 1;
-      if (axis === "rear") panel.position.set(center, panel.position.y, rearZ + 0.008);
+      if (horizontal) panel.position.set(center, panel.position.y, wallZ + inwardZ * 0.008);
       else {
-        panel.position.set(sideX + 0.008, panel.position.y, center);
+        panel.position.set(wallX + inwardX * 0.008, panel.position.y, center);
         panel.rotation.y = Math.PI / 2;
       }
-      pergola.add(panel);
+      assembly.add(panel);
 
-      const bottomRail = axis === "rear"
-        ? addBox(pergola, [clearSpan + 0.08, 0.105, 0.11], [center, screenTopY - screenHeight * initialDeployment, rearZ], aluminum, true, true)
-        : addBox(pergola, [0.11, 0.105, clearSpan + 0.08], [sideX, screenTopY - screenHeight * initialDeployment, center], aluminum, true, true);
-      addBox(bottomRail, axis === "rear" ? [0.18, 0.025, 0.125] : [0.125, 0.025, 0.18], [0, -0.06, 0], gasketMaterial, false, false);
-      sideWallParts.push({ panel, bottomRail, topY: screenTopY, height: screenHeight, deployment: initialDeployment });
+      const bottomRail = horizontal
+        ? addBox(assembly, [clearSpan + 0.08, 0.105, 0.11], [center, screenTopY - screenHeight * initialDeployment, wallZ], aluminum, true, true)
+        : addBox(assembly, [0.11, 0.105, clearSpan + 0.08], [wallX, screenTopY - screenHeight * initialDeployment, center], aluminum, true, true);
+      addBox(bottomRail, horizontal ? [0.18, 0.025, 0.125] : [0.125, 0.025, 0.18], [0, -0.06, 0], gasketMaterial, false, false);
+      sideWallParts.push({ side, assembly, panel, bottomRail, topY: screenTopY, height: screenHeight, deployment: initialDeployment });
     };
 
     addScreenAssembly("rear", 0, footprint.width - 0.46);
+    addScreenAssembly("front", 0, footprint.width - 0.46);
     if (footprint.posts === 6) {
       const sideSectionSpan = halfDepth - 0.27;
-      addScreenAssembly("side", -halfDepth / 2, sideSectionSpan);
-      addScreenAssembly("side", halfDepth / 2, sideSectionSpan);
+      addScreenAssembly("left", -halfDepth / 2, sideSectionSpan);
+      addScreenAssembly("left", halfDepth / 2, sideSectionSpan);
+      addScreenAssembly("right", -halfDepth / 2, sideSectionSpan);
+      addScreenAssembly("right", halfDepth / 2, sideSectionSpan);
     } else {
-      addScreenAssembly("side", 0, footprint.depth - 0.46);
+      addScreenAssembly("left", 0, footprint.depth - 0.46);
+      addScreenAssembly("right", 0, footprint.depth - 0.46);
     }
 
     const louverMeshes: THREE.Group[] = [];
@@ -1186,8 +1218,9 @@ function RealPergolaViewer({
         const response = Math.min(1, delta * (5.2 + index * 0.035));
         blade.rotation.x = THREE.MathUtils.lerp(blade.rotation.x, bladeTarget, response);
       }
-      const screenTarget = state.sideWalls ? 1 : 0.012;
       for (const wall of sideWallParts) {
+        const screenTarget = state.wallSides[wall.side] ? 1 : 0.012;
+        wall.assembly.visible = state.wallSides[wall.side] || wall.deployment > 0.018;
         wall.deployment = THREE.MathUtils.lerp(wall.deployment, screenTarget, Math.min(1, delta * 4.6));
         wall.panel.scale.y = wall.deployment;
         wall.panel.position.y = wall.topY - (wall.height * wall.deployment) / 2;
@@ -1294,6 +1327,31 @@ function Toggle({
   );
 }
 
+function WallSidePicker({
+  walls,
+  onChange,
+}: {
+  walls: WallSelections;
+  onChange: (side: WallSide) => void;
+}) {
+  return (
+    <div className="wall-side-options" aria-label="Choose motorized wall sides">
+      {wallSideOptions.map(({ side, label }) => (
+        <button
+          key={side}
+          className={walls[side] ? "is-selected" : ""}
+          onClick={() => onChange(side)}
+          aria-pressed={walls[side]}
+        >
+          <i className={`wall-side-glyph is-${side}`} aria-hidden="true"><span /></i>
+          <b>{label}</b>
+          <small>+ $1,190</small>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ProductStudio() {
   const [selectedSize, setSelectedSize] = useState(1);
   const [selectedFinish, setSelectedFinish] = useState(0);
@@ -1301,7 +1359,7 @@ export function ProductStudio() {
   const [yardVisible, setYardVisible] = useState(true);
   const [dusk, setDusk] = useState(false);
   const [heater, setHeater] = useState(false);
-  const [screens, setScreens] = useState(true);
+  const [wallSides, setWallSides] = useState<WallSelections>({ ...defaultWallSelections });
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
@@ -1312,9 +1370,13 @@ export function ProductStudio() {
   const [reference, setReference] = useState("");
 
   const total = useMemo(
-    () => sizes[selectedSize].price + (heater ? 798 : 0) + (screens ? 1190 : 0),
-    [heater, screens, selectedSize],
+    () => sizes[selectedSize].price + (heater ? 798 : 0) + selectedWallCount(wallSides) * 1190,
+    [heater, selectedSize, wallSides],
   );
+
+  const toggleWallSide = (side: WallSide) => {
+    setWallSides((current) => ({ ...current, [side]: !current[side] }));
+  };
 
   useEffect(() => {
     const reveal = new IntersectionObserver(
@@ -1372,7 +1434,8 @@ export function ProductStudio() {
             louversOpen,
             eveningLight: dusk,
             heaters: heater,
-            privacyScreen: screens,
+            privacyScreen: selectedWallCount(wallSides) > 0,
+            wallSides: wallSideOptions.filter(({ side }) => wallSides[side]).map(({ label }) => label),
           },
         }),
       });
@@ -1427,13 +1490,12 @@ export function ProductStudio() {
               yardVisible={yardVisible}
               dusk={dusk}
               sizeIndex={selectedSize}
-              sideWalls={screens}
+              wallSides={wallSides}
             />
             <div className="viewer-controls" aria-label="3D model controls">
               <Toggle active={louversOpen} onChange={() => setLouversOpen(!louversOpen)} label="Open louvers" />
               <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Show landscape" />
               <Toggle active={dusk} onChange={() => setDusk(!dusk)} label="Evening light" />
-              <Toggle active={screens} onChange={() => setScreens(!screens)} label="Side walls" />
             </div>
           </div>
 
@@ -1504,12 +1566,10 @@ export function ProductStudio() {
                 <span><b>Dual radiant heaters</b><small>2 × 1500W · graphite</small></span>
                 <strong>+ $798</strong>
               </label>
-              <label className="addon">
-                <input type="checkbox" checked={screens} onChange={(event) => setScreens(event.target.checked)} />
-                <span className="checkmark" />
-                <span><b>Motorized side walls</b><small>Rear + side elevations</small></span>
-                <strong>+ $1,190</strong>
-              </label>
+              <div className="wall-configurator">
+                <div><span><b>Motorized side walls</b><small>Choose any elevation independently</small></span><strong>{selectedWallCount(wallSides)} selected</strong></div>
+                <WallSidePicker walls={wallSides} onChange={toggleWallSide} />
+              </div>
             </div>
 
             <div className="purchase-block">
@@ -1823,7 +1883,7 @@ export default function Home() {
   const [louversOpen, setLouversOpen] = useState(false);
   const [yardVisible, setYardVisible] = useState(true);
   const [dusk, setDusk] = useState(false);
-  const [sideWalls, setSideWalls] = useState(true);
+  const [wallSides, setWallSides] = useState<WallSelections>({ ...defaultWallSelections });
   const [selectedFinish, setSelectedFinish] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1842,7 +1902,7 @@ export default function Home() {
   const [newsletterMessage, setNewsletterMessage] = useState("");
 
   const sizePremiums = [0, 900, 2400, 6600];
-  const total = selectedModel.basePrice + sizePremiums[selectedSize] + (sideWalls ? 2380 : 0);
+  const total = selectedModel.basePrice + sizePremiums[selectedSize] + selectedWallCount(wallSides) * 1190;
   const filteredModels = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return allModels;
@@ -1898,8 +1958,12 @@ export default function Home() {
     setSelectedModel(model);
     setLouversOpen(false);
     setDusk(false);
-    setSideWalls(true);
+    setWallSides({ ...defaultWallSelections });
     setStudioOpen(true);
+  };
+
+  const toggleWallSide = (side: WallSide) => {
+    setWallSides((current) => ({ ...current, [side]: !current[side] }));
   };
 
   const openBrief = () => {
@@ -1962,7 +2026,8 @@ export default function Home() {
             louversOpen,
             eveningLight: dusk,
             heaters: false,
-            privacyScreen: sideWalls,
+            privacyScreen: selectedWallCount(wallSides) > 0,
+            wallSides: wallSideOptions.filter(({ side }) => wallSides[side]).map(({ label }) => label),
           },
         }),
       });
@@ -2104,12 +2169,11 @@ export default function Home() {
           <section className="model-studio-dialog" role="dialog" aria-modal="true" aria-labelledby="studio-model-title">
             <button className="studio-close" onClick={() => setStudioOpen(false)} aria-label="Close 3D studio">×</button>
             <div className="studio-visual">
-              <RealPergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} sizeIndex={selectedSize} sideWalls={sideWalls} />
+              <RealPergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} sizeIndex={selectedSize} wallSides={wallSides} />
               <div className="viewer-controls" aria-label="3D model controls">
                 <Toggle active={louversOpen} onChange={() => setLouversOpen(!louversOpen)} label="Open louvers" />
                 <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Yard visible" />
                 <Toggle active={dusk} onChange={() => setDusk(!dusk)} label="Evening light" />
-                <Toggle active={sideWalls} onChange={() => setSideWalls(!sideWalls)} label="Side walls" />
               </div>
             </div>
             <div className="studio-panel">
@@ -2119,6 +2183,7 @@ export default function Home() {
               <div className="studio-spec-row"><span><small>Wind</small><b>{selectedModel.wind}</b></span><span><small>Span</small><b>{selectedModel.span}</b></span><span><small>Snow</small><b>{selectedModel.snow}</b></span></div>
               <div className="studio-option"><div><span>Finish</span><b>{finishes[selectedFinish].name}</b></div><div className="studio-finish-options">{finishes.map((finish, index) => <button key={finish.name} className={selectedFinish === index ? "is-selected" : ""} onClick={() => setSelectedFinish(index)} aria-label={`Select ${finish.name} finish`}><i style={{ background: finish.value }} /><span>{finish.name}</span></button>)}</div></div>
               <div className="studio-option"><div><span>Footprint</span><b>{sizes[selectedSize].label}</b></div><div className="studio-size-options">{sizes.map((size, index) => <button key={size.label} className={selectedSize === index ? "is-selected" : ""} onClick={() => setSelectedSize(index)}><b>{size.label}</b><small>{size.meta}</small></button>)}</div></div>
+              <div className="studio-option"><div><span>Motorized walls</span><b>{selectedWallCount(wallSides)} selected</b></div><WallSidePicker walls={wallSides} onChange={toggleWallSide} /></div>
               <div className="studio-total"><span>Configured estimate</span><strong>{money(total)}</strong></div>
               <button className="studio-brief-button" onClick={addModelToBrief}>Add to project brief <b>→</b></button>
             </div>
