@@ -16,12 +16,18 @@ const geistMono = Geist_Mono({
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("host") ?? "localhost:3000";
-  const protocol = host.startsWith("localhost") ? "http" : "https";
+  const forwardedProtocol = requestHeaders.get("x-forwarded-proto");
+  const localHost = host.startsWith("localhost") || host.startsWith("127.0.0.1") || host.startsWith("[::1]");
+  const protocol = forwardedProtocol === "http" || forwardedProtocol === "https" ? forwardedProtocol : localHost ? "http" : "https";
   return {
     metadataBase: new URL(`${protocol}://${host}`),
     title: "Coordinatez AXIS POWER+ Gen 2 — Interactive Pergola",
     description:
       "Explore the Coordinatez AXIS POWER+ Gen 2 in real-time 3D, compare specifications, watch product and installation films, and configure a complete outdoor room.",
+    icons: {
+      icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+      shortcut: "/favicon.svg",
+    },
     openGraph: {
       title: "Coordinatez AXIS POWER+ Gen 2",
       description: "Configure the complete AXIS POWER+ Gen 2 pergola in real-time 3D.",

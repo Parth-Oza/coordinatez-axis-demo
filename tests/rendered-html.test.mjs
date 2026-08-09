@@ -122,6 +122,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(arPage, /"ios-src"/);
   assert.match(arPage, /activateAR/);
   assert.match(arPage, /"ar-scale": "fixed"/);
+  assert.match(arPage, /setAttribute\("src", glb\)/);
   assert.match(arPage, /coordinatez-ar-qr-/);
   assert.equal(JSON.parse(arManifestText).length, 12);
   assert.match(css, /models-triptych\.jpg/);
@@ -130,8 +131,12 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(css, /prototype-showcase/);
   assert.match(css, /scroll-snap-type:\s*x mandatory/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /@keyframes viewer-enter \{ from \{ opacity: 0; transform: translateX\(-18px\); \} to \{ opacity: 1; transform: none; \} \}/);
   assert.match(css, /\.site-header \{ position: relative; top: auto; height: 68px; \}/);
+  assert.equal((page.match(/id="brief-title"/g) ?? []).length, 2);
   assert.match(layout, /AXIS POWER\+ Gen 2/);
+  assert.match(layout, /favicon\.svg/);
+  assert.match(layout, /127\.0\.0\.1/);
   assert.match(subscriberRoute, /newsletterSubscribers/);
   assert.match(migration, /CREATE TABLE `newsletter_subscribers`/);
 });

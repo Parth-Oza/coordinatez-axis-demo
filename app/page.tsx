@@ -2104,7 +2104,7 @@ export function ProductStudio() {
               <form className="brief-form" onSubmit={submitBrief}>
                 <div className="brief-intro">
                   <span>Start your project</span>
-                  <h2>Bring us<br />your outside.</h2>
+                  <h2 id="brief-title">Bring us<br />{" "}your outside.</h2>
                   <p>Share a few details and the complete configuration will arrive with your request.</p>
                 </div>
 
@@ -2701,7 +2701,7 @@ export function ModelRangeLanding() {
               <div className="brief-success" aria-live="polite"><i>✓</i><span>Project brief received</span><h2>We have your<br />configuration.</h2><p>A studio specialist can now review your selected model and contact details.</p><div><small>Reference</small><strong>{reference}</strong></div><button onClick={() => { setBriefOpen(false); setBrief(emptyBrief); }}>Return to models →</button></div>
             ) : (
               <form className="brief-form" onSubmit={submitBrief}>
-                <div className="brief-intro"><span>Start your project</span><h2>Bring us<br />your outside.</h2><p>Share a few details and the complete model configuration will arrive with your request.</p></div>
+                <div className="brief-intro"><span>Start your project</span><h2 id="brief-title">Bring us<br />{" "}your outside.</h2><p>Share a few details and the complete model configuration will arrive with your request.</p></div>
                 <div className="brief-summary"><span><small>Model</small><b>{selectedModel.name.replace(" Motorized Pergola", "")}</b></span><span><small>Footprint</small><b>{sizes[selectedSize].label}</b></span><span><small>Finish</small><b>{finishes[selectedFinish].name}</b></span><span><small>Estimate</small><b>{money(total)}</b></span></div>
                 <div className="form-grid">
                   <label><span>Name *</span><input required minLength={2} maxLength={100} autoComplete="name" value={brief.name} onChange={(event) => setBrief({ ...brief, name: event.target.value })} placeholder="Your name" /></label>

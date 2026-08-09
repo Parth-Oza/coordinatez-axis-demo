@@ -67,6 +67,14 @@ export default function AugmentedRealityPage() {
   const usdz = `/ar/${basename}.usdz`;
   const qr = `/ar/coordinatez-ar-qr-${size}-${finish}.png`;
 
+  useEffect(() => {
+    const modelViewer = document.querySelector<NativeModelViewer>("#coordinatez-ar-model");
+    if (!modelViewer) return;
+    modelViewer.setAttribute("src", glb);
+    modelViewer.setAttribute("ios-src", usdz);
+    modelViewer.setAttribute("alt", `${configuration.label} Coordinatez AXIS pergola in ${finishLabel}`);
+  }, [configuration.label, finishLabel, glb, usdz]);
+
   const launchNativeAR = async () => {
     setLaunching(true);
     setArMessage("Opening your phone’s native AR viewer…");
