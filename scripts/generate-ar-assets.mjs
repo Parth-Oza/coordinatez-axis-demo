@@ -57,10 +57,10 @@ function buildPergola(size, finish) {
   root.name = "AXIS_POWER_PLUS";
   scene.add(root);
 
-  const aluminum = new THREE.MeshStandardMaterial({ name: `${finish.label} aluminum`, color: finish.color, metalness: 0.62, roughness: 0.29 });
-  const darkMetal = new THREE.MeshStandardMaterial({ name: "Graphite hardware", color: 0x161b19, metalness: 0.78, roughness: 0.25 });
+  const aluminum = new THREE.MeshStandardMaterial({ name: `${finish.label} aluminum`, color: finish.color, metalness: 0.5, roughness: 0.4 });
+  const darkMetal = new THREE.MeshStandardMaterial({ name: "Graphite hardware", color: 0x161b19, metalness: 0.58, roughness: 0.38 });
   const fastener = new THREE.MeshStandardMaterial({ name: "Stainless fasteners", color: 0x929996, metalness: 0.92, roughness: 0.18 });
-  const screen = new THREE.MeshStandardMaterial({ name: "Motorized mesh", color: 0x45554e, transparent: true, opacity: 0.58, roughness: 0.9 });
+  const screen = new THREE.MeshStandardMaterial({ name: "Motorized mesh", color: 0x34413b, transparent: true, opacity: 0.34, depthWrite: false, roughness: 1 });
   const upholstery = new THREE.MeshStandardMaterial({ name: "Warm upholstery", color: 0xded8c8, metalness: 0, roughness: 0.86 });
   const cushionAccent = new THREE.MeshStandardMaterial({ name: "Moss cushions", color: 0x63756b, metalness: 0, roughness: 0.9 });
   const wood = new THREE.MeshStandardMaterial({ name: "Teak accent", color: 0x8f6848, metalness: 0, roughness: 0.68 });
@@ -89,13 +89,16 @@ function buildPergola(size, finish) {
   const height = 2.49;
   const beamHeight = 0.24;
   const postSize = 0.14;
+  const beamDepth = 0.19;
   const halfWidth = size.width / 2;
   const halfDepth = size.depth / 2;
-  const postDepths = size.posts === 6 ? [-halfDepth, 0, halfDepth] : [-halfDepth, halfDepth];
+  const postX = halfWidth - postSize / 2;
+  const postZ = halfDepth - postSize / 2;
+  const postDepths = size.posts === 6 ? [-postZ, 0, postZ] : [-postZ, postZ];
 
-  for (const x of [-halfWidth, halfWidth]) {
+  for (const x of [-postX, postX]) {
     for (const z of postDepths) {
-      box("Anchor plate", [0.29, 0.025, 0.29], [x, 0.0125, z], aluminum);
+      box("Anchor plate", [0.29, 0.025, 0.29], [x, 0.0125, z], darkMetal);
       box("Structural post", [postSize, height - beamHeight, postSize], [x, (height - beamHeight) / 2, z], aluminum);
       for (const dx of [-0.1, 0.1]) {
         for (const dz of [-0.1, 0.1]) cylinder("Anchor bolt", 0.014, 0.035, [x + dx, 0.035, z + dz], fastener);
@@ -103,29 +106,34 @@ function buildPergola(size, finish) {
     }
   }
 
-  box("Front motor beam", [size.width + postSize, beamHeight, 0.19], [0, height - beamHeight / 2, halfDepth], aluminum);
-  box("Rear drainage beam", [size.width + postSize, beamHeight, 0.19], [0, height - beamHeight / 2, -halfDepth], aluminum);
-  box("Left beam", [0.19, beamHeight, size.depth + postSize], [-halfWidth, height - beamHeight / 2, 0], aluminum);
-  box("Right beam", [0.19, beamHeight, size.depth + postSize], [halfWidth, height - beamHeight / 2, 0], aluminum);
-  box("Motor housing", [0.25, 0.19, 0.52], [halfWidth + 0.055, height - 0.15, -halfDepth + 0.46], darkMetal);
+  box("Front motor beam", [size.width, beamHeight, beamDepth], [0, height - beamHeight / 2, halfDepth - beamDepth / 2], aluminum);
+  box("Rear drainage beam", [size.width, beamHeight, beamDepth], [0, height - beamHeight / 2, -halfDepth + beamDepth / 2], aluminum);
+  box("Left beam", [beamDepth, beamHeight, size.depth], [-halfWidth + beamDepth / 2, height - beamHeight / 2, 0], aluminum);
+  box("Right beam", [beamDepth, beamHeight, size.depth], [halfWidth - beamDepth / 2, height - beamHeight / 2, 0], aluminum);
+  box("Motor housing", [0.25, 0.19, 0.52], [halfWidth - 0.125, height - 0.15, -halfDepth + 0.46], darkMetal);
 
-  const innerDepth = size.depth - 0.25;
+  const innerDepth = size.depth - beamDepth * 2;
+  const innerWidth = size.width - beamDepth * 2;
   const louverCount = Math.max(18, Math.round(innerDepth / 0.125));
   const spacing = innerDepth / louverCount;
   for (let index = 0; index < louverCount; index += 1) {
     const z = -innerDepth / 2 + spacing * (index + 0.5);
-    box(`Louver ${String(index + 1).padStart(2, "0")}`, [size.width - 0.25, 0.035, spacing * 0.82], [0, height - 0.17, z], aluminum);
+    box(`Louver ${String(index + 1).padStart(2, "0")}`, [innerWidth, 0.035, spacing * 0.82], [0, height - 0.17, z], aluminum);
   }
 
-  box("Front LED", [size.width - 0.24, 0.018, 0.025], [0, height - 0.26, halfDepth - 0.11], light);
-  box("Rear LED", [size.width - 0.24, 0.018, 0.025], [0, height - 0.26, -halfDepth + 0.11], light);
-  box("Left LED", [0.025, 0.018, size.depth - 0.3], [-halfWidth + 0.11, height - 0.26, 0], light);
-  box("Right LED", [0.025, 0.018, size.depth - 0.3], [halfWidth - 0.11, height - 0.26, 0], light);
+  box("Front LED", [innerWidth, 0.018, 0.025], [0, height - 0.26, halfDepth - beamDepth], light);
+  box("Rear LED", [innerWidth, 0.018, 0.025], [0, height - 0.26, -halfDepth + beamDepth], light);
+  box("Left LED", [0.025, 0.018, innerDepth], [-halfWidth + beamDepth, height - 0.26, 0], light);
+  box("Right LED", [0.025, 0.018, innerDepth], [halfWidth - beamDepth, height - 0.26, 0], light);
 
-  box("Rear motorized wall", [size.width - 0.24, 1.96, 0.012], [0, 1.18, -halfDepth + 0.11], screen);
-  box("Rear wall bottom rail", [size.width - 0.2, 0.055, 0.055], [0, 0.19, -halfDepth + 0.11], aluminum);
-  box("Left motorized wall", [0.012, 1.96, size.depth - 0.24], [-halfWidth + 0.11, 1.18, 0], screen);
-  box("Left wall bottom rail", [0.055, 0.055, size.depth - 0.2], [-halfWidth + 0.11, 0.19, 0], aluminum);
+  box("Rear motorized wall", [innerWidth, 1.96, 0.012], [0, 1.18, -halfDepth + 0.12], screen);
+  box("Rear wall cassette", [innerWidth, 0.14, 0.15], [0, height - 0.33, -halfDepth + 0.12], aluminum);
+  box("Rear wall bottom rail", [innerWidth, 0.055, 0.055], [0, 0.19, -halfDepth + 0.12], aluminum);
+  for (const x of [-halfWidth + 0.23, halfWidth - 0.23]) box("Rear wall guide", [0.045, 2.02, 0.045], [x, 1.18, -halfDepth + 0.12], darkMetal);
+  box("Left motorized wall", [0.012, 1.96, innerDepth], [-halfWidth + 0.12, 1.18, 0], screen);
+  box("Left wall cassette", [0.15, 0.14, innerDepth], [-halfWidth + 0.12, height - 0.33, 0], aluminum);
+  box("Left wall bottom rail", [0.055, 0.055, innerDepth], [-halfWidth + 0.12, 0.19, 0], aluminum);
+  for (const z of [-halfDepth + 0.23, halfDepth - 0.23]) box("Left wall guide", [0.045, 2.02, 0.045], [-halfWidth + 0.12, 1.18, z], darkMetal);
 
   const furniture = new THREE.Group();
   furniture.name = "Outdoor furniture";

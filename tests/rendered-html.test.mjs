@@ -48,7 +48,7 @@ test("server-renders the complete Coordinatez AXIS product experience", async ()
 });
 
 test("ships the comparison imagery and full-stack interaction hooks", async () => {
-  const [page, arPage, css, layout, subscriberRoute, migration, arManifestText] = await Promise.all([
+  const [page, arPage, css, layout, subscriberRoute, migration, arManifestText, arGenerator] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/ar/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -56,6 +56,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
     readFile(new URL("../app/api/subscribers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0001_graceful_madame_masque.sql", import.meta.url), "utf8"),
     readFile(new URL("../public/ar/models.json", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/generate-ar-assets.mjs", import.meta.url), "utf8"),
   ]);
 
   await access(new URL("../public/models-triptych.jpg", import.meta.url));
@@ -121,10 +122,19 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(arPage, /webxr scene-viewer quick-look/);
   assert.match(arPage, /"ios-src"/);
   assert.match(arPage, /activateAR/);
+  assert.match(arPage, /canActivateAR/);
   assert.match(arPage, /"ar-scale": "fixed"/);
+  assert.match(arPage, /loading: "eager"/);
+  assert.match(arPage, /modelViewer\.addEventListener\("load"/);
+  assert.match(arPage, /modelViewer\.loaded/);
   assert.match(arPage, /setAttribute\("src", glb\)/);
+  assert.match(arPage, /allowsContentScaling=0/);
+  assert.doesNotMatch(arPage, /native-ar-slot-button/);
   assert.match(arPage, /coordinatez-ar-qr-/);
   assert.equal(JSON.parse(arManifestText).length, 12);
+  assert.match(arGenerator, /const postX = halfWidth - postSize \/ 2/);
+  assert.match(arGenerator, /\[size\.width, beamHeight, beamDepth\]/);
+  assert.match(arGenerator, /"Anchor plate"[^\n]+darkMetal/);
   assert.match(css, /models-triptych\.jpg/);
   assert.match(css, /url\("\/hero-triptych-v2\.jpg"\)/);
   assert.match(css, /hero-louver/);
@@ -137,6 +147,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(layout, /AXIS POWER\+ Gen 2/);
   assert.match(layout, /favicon\.svg/);
   assert.match(layout, /127\.0\.0\.1/);
+  assert.match(layout, /viewportFit: "cover"/);
   assert.match(subscriberRoute, /newsletterSubscribers/);
   assert.match(migration, /CREATE TABLE `newsletter_subscribers`/);
 });

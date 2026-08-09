@@ -20,7 +20,14 @@ const finishOptions = [
 
 type SizeSlug = (typeof sizeOptions)[number]["slug"];
 type FinishSlug = (typeof finishOptions)[number]["slug"];
-type NativeModelViewer = HTMLElement & { activateAR?: () => Promise<void> };
+type NativeModelViewer = HTMLElement & {
+  activateAR?: () => Promise<void>;
+  canActivateAR?: boolean;
+  loaded?: boolean;
+  updateComplete?: Promise<unknown>;
+};
+
+type ModelViewerEvent = Event & { detail?: { status?: string; url?: string } };
 
 function isSizeSlug(value: string | null): value is SizeSlug {
   return sizeOptions.some((option) => option.slug === value);
@@ -34,9 +41,13 @@ export default function AugmentedRealityPage() {
   const [size, setSize] = useState<SizeSlug>("10x13");
   const [finish, setFinish] = useState<FinishSlug>("carbon");
   const [queryReady, setQueryReady] = useState(false);
-  const [viewerReady, setViewerReady] = useState(false);
+  const [viewerDefined, setViewerDefined] = useState(false);
+  const [modelReady, setModelReady] = useState(false);
+  const [modelError, setModelError] = useState("");
+  const [arAvailable, setArAvailable] = useState<boolean | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
   const [launching, setLaunching] = useState(false);
-  const [arMessage, setArMessage] = useState("Point your camera at a clear section of patio floor.");
+  const [arMessage, setArMessage] = useState("Preparing the true-scale 3D model…");
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
@@ -47,9 +58,16 @@ export default function AugmentedRealityPage() {
       if (isFinishSlug(queryFinish)) setFinish(queryFinish);
       setQueryReady(true);
     });
-    void import("@google/model-viewer").then(() => setViewerReady(true)).catch(() => {
-      setArMessage("The 3D preview could not start. Use the iPhone / iPad AR link below or reload this page.");
-    });
+    let active = true;
+    void import("@google/model-viewer")
+      .then(() => customElements.whenDefined("model-viewer"))
+      .then(() => { if (active) setViewerDefined(true); })
+      .catch(() => {
+        if (!active) return;
+        setModelError("The interactive viewer could not start.");
+        setArMessage("Use a direct iPhone or Android model link below, or reload this page.");
+      });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -66,28 +84,108 @@ export default function AugmentedRealityPage() {
   const glb = `/ar/${basename}.glb`;
   const usdz = `/ar/${basename}.usdz`;
   const qr = `/ar/coordinatez-ar-qr-${size}-${finish}.png`;
+  const quickLookHref = `${usdz}#allowsContentScaling=0`;
 
   useEffect(() => {
+    if (!queryReady || !viewerDefined) return;
     const modelViewer = document.querySelector<NativeModelViewer>("#coordinatez-ar-model");
     if (!modelViewer) return;
+
+    let active = true;
+
+    const handleLoad = (event: Event) => {
+      if (!active) return;
+      const loadedUrl = (event as ModelViewerEvent).detail?.url;
+      if (loadedUrl && new URL(loadedUrl, window.location.href).pathname !== glb) return;
+      setModelReady(true);
+      setModelError("");
+      const available = Boolean(modelViewer.canActivateAR);
+      setArAvailable(available);
+      setArMessage(available
+        ? "AR is ready. Point your camera at a clear section of patio floor."
+        : "3D is ready. Open this page on an AR-compatible phone to place AXIS at full scale.");
+    };
+    const handleError = () => {
+      if (!active) return;
+      setModelReady(false);
+      setModelError("This 3D model could not be loaded.");
+      setArMessage("Check your connection, retry the model, or use a direct model link below.");
+    };
+    const handleArStatus = (event: Event) => {
+      if (!active) return;
+      const status = (event as ModelViewerEvent).detail?.status;
+      if (status === "session-started") setArMessage("AR opened. Move slowly to detect the floor, then tap to place AXIS.");
+      if (status === "object-placed") setArMessage("AXIS is placed at true scale. Walk the perimeter to check clearance.");
+      if (status === "failed") setArMessage("Native AR could not start in this browser. Try Chrome on Android or Safari on iPhone.");
+    };
+    const handleArTracking = (event: Event) => {
+      if (!active) return;
+      const status = (event as ModelViewerEvent).detail?.status;
+      if (status === "not-tracking") setArMessage("Move the phone more slowly and keep the patio floor in view.");
+      if (status === "tracking") setArMessage("Floor detected. Tap once to place AXIS at true scale.");
+    };
+
+    modelViewer.addEventListener("load", handleLoad);
+    modelViewer.addEventListener("error", handleError);
+    modelViewer.addEventListener("ar-status", handleArStatus);
+    modelViewer.addEventListener("ar-tracking", handleArTracking);
+
+    modelViewer.removeAttribute("src");
     modelViewer.setAttribute("src", glb);
     modelViewer.setAttribute("ios-src", usdz);
     modelViewer.setAttribute("alt", `${configuration.label} Coordinatez AXIS pergola in ${finishLabel}`);
-  }, [configuration.label, finishLabel, glb, usdz]);
+
+    void Promise.resolve(modelViewer.updateComplete).then(() => {
+      if (!active) return;
+      setArAvailable(Boolean(modelViewer.canActivateAR));
+      if (modelViewer.loaded) handleLoad(new CustomEvent("load", { detail: { url: glb } }));
+    });
+
+    return () => {
+      active = false;
+      modelViewer.removeEventListener("load", handleLoad);
+      modelViewer.removeEventListener("error", handleError);
+      modelViewer.removeEventListener("ar-status", handleArStatus);
+      modelViewer.removeEventListener("ar-tracking", handleArTracking);
+    };
+  }, [configuration.label, finishLabel, glb, queryReady, retryToken, usdz, viewerDefined]);
 
   const launchNativeAR = async () => {
+    const modelViewer = document.querySelector<NativeModelViewer>("#coordinatez-ar-model");
+    if (!modelReady) {
+      setArMessage("Wait for the 3D model to finish loading before opening AR.");
+      return;
+    }
+    if (!modelViewer?.activateAR || !modelViewer.canActivateAR) {
+      setArAvailable(false);
+      setArMessage("Native AR is unavailable in this browser. Use Safari on iPhone or Chrome on an AR-supported Android phone.");
+      document.querySelector(".native-ar-device-fallback")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     setLaunching(true);
     setArMessage("Opening your phone’s native AR viewer…");
     try {
-      const modelViewer = document.querySelector<NativeModelViewer>("#coordinatez-ar-model");
-      if (!modelViewer?.activateAR) throw new Error("Native AR is unavailable");
       await modelViewer.activateAR();
-      setArMessage("Move your phone slowly to detect the floor, then tap to place AXIS.");
+      setArMessage("AR viewer opened. Move slowly to detect the floor, then tap to place AXIS.");
     } catch {
-      setArMessage("Native AR needs a compatible iPhone, iPad, or AR-supported Android phone. The interactive 3D preview still works here.");
+      setArMessage("AR could not open. Try Safari on iPhone or Chrome on an AR-supported Android phone.");
     } finally {
       setLaunching(false);
     }
+  };
+
+  const primaryLabel = launching ? "Opening AR…" : arAvailable === false ? "Open on your phone" : "Place in your space";
+  const primaryHint = arAvailable === false ? "Safari on iPhone · Chrome on Android" : "True-scale iPhone + Android AR";
+  const prepareModelChange = (message: string) => {
+    setModelReady(false);
+    setModelError("");
+    setArAvailable(null);
+    setArMessage(message);
+  };
+  const retryModel = () => {
+    prepareModelChange(`Retrying the ${configuration.label} ${finishLabel} model…`);
+    setRetryToken((value) => value + 1);
   };
 
   const viewer = createElement(
@@ -95,13 +193,12 @@ export default function AugmentedRealityPage() {
     {
       id: "coordinatez-ar-model",
       class: "native-ar-model",
-      src: glb,
-      "ios-src": usdz,
       alt: `${configuration.label} Coordinatez AXIS pergola in ${finishLabel}`,
       ar: true,
       "ar-modes": "webxr scene-viewer quick-look",
       "ar-scale": "fixed",
       "ar-placement": "floor",
+      loading: "eager",
       "camera-controls": true,
       "auto-rotate": true,
       "auto-rotate-delay": "650",
@@ -116,7 +213,6 @@ export default function AugmentedRealityPage() {
       "interaction-prompt": "auto",
       "touch-action": "pan-y",
     },
-    createElement("button", { className: "native-ar-slot-button", slot: "ar-button" }, "Place in your space", createElement("span", null, "↗")),
     createElement("div", { className: "native-ar-progress", slot: "progress-bar" }, createElement("i")),
   );
 
@@ -132,7 +228,15 @@ export default function AugmentedRealityPage() {
         <div className="native-ar-viewer-wrap">
           <div className="native-ar-eyebrow"><i /> True scale · 1 unit = 1 metre</div>
           {viewer}
-          {!viewerReady && <div className="native-ar-loading"><i /><span>Preparing architectural model</span></div>}
+          {!modelReady && (
+            <div className={`native-ar-loading ${modelError ? "is-error" : ""}`} role={modelError ? "alert" : undefined}>
+              {modelError ? (
+                <><b>3D preview unavailable</b><span>{modelError}</span><button onClick={retryModel}>Retry model</button></>
+              ) : (
+                <><i /><span>Preparing architectural model</span></>
+              )}
+            </div>
+          )}
           <div className="native-ar-viewer-caption">
             <span>{configuration.label}</span>
             <b>AXIS POWER+ / {finishLabel}</b>
@@ -150,7 +254,11 @@ export default function AugmentedRealityPage() {
             <div className="native-ar-choice-heading"><span>01 / Footprint</span><b>{configuration.metric}</b></div>
             <div className="native-ar-size-grid">
               {sizeOptions.map((option) => (
-                <button key={option.slug} className={size === option.slug ? "is-selected" : ""} onClick={() => setSize(option.slug)} aria-pressed={size === option.slug}>
+                <button key={option.slug} className={size === option.slug ? "is-selected" : ""} onClick={() => {
+                  if (size === option.slug) return;
+                  prepareModelChange(`Loading the ${option.label} ${finishLabel} model…`);
+                  setSize(option.slug);
+                }} aria-pressed={size === option.slug}>
                   <b>{option.label}</b><small>{option.posts}</small><i />
                 </button>
               ))}
@@ -161,15 +269,19 @@ export default function AugmentedRealityPage() {
             <div className="native-ar-choice-heading"><span>02 / Finish</span><b>{finishLabel}</b></div>
             <div className="native-ar-finish-grid">
               {finishOptions.map((option) => (
-                <button key={option.slug} className={finish === option.slug ? "is-selected" : ""} onClick={() => setFinish(option.slug)} aria-pressed={finish === option.slug}>
+                <button key={option.slug} className={finish === option.slug ? "is-selected" : ""} onClick={() => {
+                  if (finish === option.slug) return;
+                  prepareModelChange(`Loading the ${configuration.label} ${option.label} model…`);
+                  setFinish(option.slug);
+                }} aria-pressed={finish === option.slug}>
                   <i style={{ background: option.color }} /><span>{option.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <button className="native-ar-primary" onClick={() => void launchNativeAR()} disabled={launching || !viewerReady}>
-            <i aria-hidden="true">AR</i><span><b>{launching ? "Opening AR…" : "Place in your space"}</b><small>Uses your phone’s native AR viewer</small></span><em>↗</em>
+          <button className="native-ar-primary" onClick={() => void launchNativeAR()} disabled={launching || !modelReady}>
+            <i aria-hidden="true">AR</i><span><b>{primaryLabel}</b><small>{primaryHint}</small></span><em>↗</em>
           </button>
           <p className="native-ar-status" aria-live="polite">{arMessage}</p>
 
@@ -178,7 +290,13 @@ export default function AugmentedRealityPage() {
               <Image src={qr} width={62} height={62} unoptimized alt={`QR code to open the ${configuration.label} ${finishLabel} AR model on a phone`} />
               <span><b>On a computer?</b><small>Scan to keep this exact size and finish.</small></span>
             </div>
-            <a rel="ar" href={usdz}>Open with iPhone / iPad AR <span>↗</span></a>
+            <div className="native-ar-fallback-links">
+              <a rel="ar" href={quickLookHref}>
+                <Image className="native-ar-quicklook-probe" src="/favicon.svg" width={1} height={1} alt="" aria-hidden="true" />
+                <span>Open with iPhone / iPad AR</span><em>↗</em>
+              </a>
+              <a href={glb} download={`${basename}.glb`}><span>Download Android / GLB model</span><em>↓</em></a>
+            </div>
           </div>
         </aside>
       </section>
