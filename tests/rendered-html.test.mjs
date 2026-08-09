@@ -34,6 +34,8 @@ test("server-renders the Coordinatez model comparison experience", async () => {
   assert.match(html, /Gen 1 Motorized Pergola/);
   assert.match(html, /Shape the light/);
   assert.match(html, /Interactive model range/);
+  assert.match(html, /A moving product story/);
+  assert.match(html, /Made for the hours you keep/);
   assert.match(html, /AXIS PRO Motorized Pergola/);
   assert.match(html, /View model/);
   assert.match(html, /Start a project/);
@@ -54,6 +56,9 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   await access(new URL("../public/coordinatez-patio-environment.jpg", import.meta.url));
   await access(new URL("../public/coordinatez-patio-panorama-v2.png", import.meta.url));
   await access(new URL("../public/coordinatez-desert-panorama.png", import.meta.url));
+  await access(new URL("../public/coordinatez-film-living.mp4", import.meta.url));
+  await access(new URL("../public/coordinatez-film-control.mp4", import.meta.url));
+  await access(new URL("../public/coordinatez-film-louvers.mp4", import.meta.url));
   assert.match(page, /<RealPergolaViewer/);
   assert.match(page, /THREE\.WebGLRenderer/);
   assert.match(page, /OrbitControls/);
@@ -75,8 +80,9 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /playMechanismSound/);
   assert.match(page, /ThemePicker/);
   assert.match(page, /coordinatez-desert-panorama\.png/);
-  assert.match(page, /addLoungeChair/);
+  assert.doesNotMatch(page, /addLoungeChair/);
   assert.match(page, /addPatioSofa/);
+  assert.match(page, /const sofaWidth = 3\.46/);
   assert.match(page, /chaiseCushion/);
   assert.match(page, /barbecue/);
   assert.match(page, /model-studio-dialog/);
@@ -84,9 +90,12 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /\/api\/briefs/);
   assert.match(page, /\/api\/subscribers/);
   assert.match(page, /model-search-dialog/);
+  assert.match(page, /prototypeFilms/);
+  assert.match(page, /coordinatez-film-living\.mp4/);
   assert.match(css, /models-triptych\.jpg/);
   assert.match(css, /url\("\/hero-triptych-v2\.jpg"\)/);
   assert.match(css, /hero-louver/);
+  assert.match(css, /prototype-showcase/);
   assert.match(css, /scroll-snap-type:\s*x mandatory/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(layout, /Interactive Outdoor Systems/);

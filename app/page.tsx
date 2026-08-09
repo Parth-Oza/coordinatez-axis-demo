@@ -1149,43 +1149,30 @@ function RealPergolaViewer({
     const furniture = new THREE.Group();
     pergola.add(furniture);
 
-    const addLoungeChair = (x: number, z: number, yaw: number) => {
-      const chair = new THREE.Group();
-      chair.position.set(x, 0, z);
-      chair.rotation.y = yaw;
-      const seat = addBox(chair, [0.92, 0.15, 0.82], [0, 0.54, 0], upholsteryMaterial, true, true);
-      seat.rotation.x = -0.025;
-      const back = addBox(chair, [0.92, 0.68, 0.14], [0, 0.86, -0.37], upholsteryMaterial, true, true);
-      back.rotation.x = -0.12;
-      addBox(chair, [1.02, 0.1, 0.12], [0, 0.48, 0.38], furnitureMetal, true, true);
-      for (const side of [-0.5, 0.5]) {
-        addBox(chair, [0.08, 0.5, 0.78], [side, 0.43, 0], furnitureMetal, true, true);
-        addBox(chair, [0.14, 0.1, 0.73], [side, 0.7, 0], accentMaterial, true, true);
-      }
-      furniture.add(chair);
-    };
-
     const furnitureScale = footprint.width < 6.5 ? 0.84 : 0.94;
     furniture.scale.setScalar(furnitureScale);
     const addPatioSofa = () => {
       const sofa = new THREE.Group();
-      sofa.position.set(-0.7 / furnitureScale, 0, (-halfDepth + 0.72) / furnitureScale);
-      addBox(sofa, [2.46, 0.2, 0.88], [0, 0.32, 0], furnitureMetal, true, true);
-      addBox(sofa, [2.34, 0.16, 0.68], [0, 0.51, 0.05], accentMaterial, true, true);
-      addBox(sofa, [2.34, 0.56, 0.12], [0, 0.78, -0.39], furnitureMetal, true, true);
-      addBox(sofa, [0.78, 0.2, 1.78], [-0.78, 0.32, 0.48], furnitureMetal, true, true);
-      addBox(sofa, [0.68, 0.16, 1.66], [-0.78, 0.51, 0.5], accentMaterial, true, true);
-      const chaiseCushion = addBox(sofa, [0.68, 0.19, 1.58], [-0.78, 0.63, 0.52], upholsteryMaterial, true, true);
+      const sofaWidth = 3.46;
+      const armX = sofaWidth / 2;
+      const seatXs = [-1.2, -0.4, 0.4, 1.2];
+      sofa.position.set(-0.45 / furnitureScale, 0, (-halfDepth + 0.72) / furnitureScale);
+      addBox(sofa, [sofaWidth, 0.2, 0.88], [0, 0.32, 0], furnitureMetal, true, true);
+      addBox(sofa, [sofaWidth - 0.12, 0.16, 0.68], [0, 0.51, 0.05], accentMaterial, true, true);
+      addBox(sofa, [sofaWidth - 0.12, 0.56, 0.12], [0, 0.78, -0.39], furnitureMetal, true, true);
+      addBox(sofa, [0.78, 0.2, 1.78], [seatXs[0], 0.32, 0.48], furnitureMetal, true, true);
+      addBox(sofa, [0.68, 0.16, 1.66], [seatXs[0], 0.51, 0.5], accentMaterial, true, true);
+      const chaiseCushion = addBox(sofa, [0.68, 0.19, 1.58], [seatXs[0], 0.63, 0.52], upholsteryMaterial, true, true);
       chaiseCushion.rotation.x = -0.012;
-      for (const x of [-0.78, 0, 0.78]) {
-        if (x !== -0.78) {
+      for (const x of seatXs) {
+        if (x !== seatXs[0]) {
           const seatCushion = addBox(sofa, [0.7, 0.19, 0.68], [x, 0.63, 0.06], upholsteryMaterial, true, true);
           seatCushion.rotation.x = -0.018;
         }
         const backCushion = addBox(sofa, [0.7, 0.66, 0.18], [x, 0.94, -0.3], upholsteryMaterial, true, true);
         backCushion.rotation.x = -0.11;
       }
-      for (const side of [-1.23, 1.23]) {
+      for (const side of [-armX, armX]) {
         const armDepth = side < 0 ? 1.72 : 0.84;
         const armZ = side < 0 ? 0.43 : 0;
         addBox(sofa, [0.17, 0.49, armDepth], [side, 0.54, armZ], furnitureMetal, true, true);
@@ -1193,21 +1180,20 @@ function RealPergolaViewer({
         const legPositions = side < 0 ? [-0.33, 1.16] : [-0.3, 0.3];
         for (const z of legPositions) addBox(sofa, [0.09, 0.26, 0.09], [side, 0.13, z], furnitureMetal, true, true);
       }
-      const leftPillow = addBox(sofa, [0.42, 0.44, 0.14], [-0.88, 0.94, -0.14], pillowMaterial, true, true);
+      const leftPillow = addBox(sofa, [0.42, 0.44, 0.14], [-1.28, 0.94, -0.14], pillowMaterial, true, true);
       leftPillow.rotation.z = -0.13;
-      const rightPillow = addBox(sofa, [0.4, 0.4, 0.14], [0.84, 0.92, -0.14], pillowAccentMaterial, true, true);
+      const rightPillow = addBox(sofa, [0.4, 0.4, 0.14], [1.3, 0.92, -0.14], pillowAccentMaterial, true, true);
       rightPillow.rotation.z = 0.16;
       furniture.add(sofa);
     };
     addPatioSofa();
-    addLoungeChair(0.95, 1.18, Math.PI);
     addBox(furniture, [1.25, 0.12, 0.68], [0.16, 0.4, 0.52], accentMaterial, true, true);
     for (const x of [-0.3, 0.62]) {
       for (const z of [0.27, 0.77]) addBox(furniture, [0.07, 0.39, 0.07], [x, 0.2, z], furnitureMetal, true, true);
     }
 
     const barbecue = new THREE.Group();
-    barbecue.position.set(halfWidth - 0.88, 0, -halfDepth + 0.72);
+    barbecue.position.set(halfWidth - 0.88, 0, halfDepth - 0.72);
     addBox(barbecue, [1.14, 0.82, 0.58], [0, 0.47, 0], grillMaterial, true, true);
     addBox(barbecue, [1.3, 0.11, 0.7], [0, 0.94, 0], counterMaterial, true, true);
     const grillHood = addBox(barbecue, [1.02, 0.48, 0.48], [0, 1.22, -0.04], grillMaterial, true, true);
@@ -2025,6 +2011,42 @@ const modelRanges: { title: string; id: string; models: RangeModel[] }[] = [
 
 const allModels = modelRanges.flatMap((range) => range.models);
 
+const prototypeFilms = [
+  {
+    id: "living",
+    index: "01",
+    label: "Outdoor living",
+    eyebrow: "AXIS / Evening mode",
+    title: "Made for the hours you keep.",
+    copy: "A long L-sectional, warm perimeter light and open-air cooking turn the pergola into a room that stays inviting after sunset.",
+    stat: "One continuous outdoor room",
+    video: "/coordinatez-film-living.mp4",
+    poster: "/coordinatez-film-living.png",
+  },
+  {
+    id: "control",
+    index: "02",
+    label: "Smart control",
+    eyebrow: "AXIS / Connected control",
+    title: "The weather, on your terms.",
+    copy: "Move the louvers, lower any privacy wall and tune the evening light from a single, deliberately simple control experience.",
+    stat: "Remote + mobile control",
+    video: "/coordinatez-film-control.mp4",
+    poster: "/coordinatez-film-control.png",
+  },
+  {
+    id: "louvers",
+    index: "03",
+    label: "Louver motion",
+    eyebrow: "AXIS / Daylight study",
+    title: "Shade when you need it. Sky when you want it.",
+    copy: "Precision louvers rotate through the sun path, opening the room to air and sealing into a clean shelter when conditions change.",
+    stat: "0–120° adjustable louvers",
+    video: "/coordinatez-film-louvers.mp4",
+    poster: "/coordinatez-film-louvers.png",
+  },
+];
+
 function MetricIcon({ type }: { type: "wind" | "span" | "snow" }) {
   return <i className={`metric-icon metric-${type}`} aria-hidden="true"><span /></i>;
 }
@@ -2092,10 +2114,13 @@ export default function Home() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [heroScene, setHeroScene] = useState(0);
+  const [activeFilm, setActiveFilm] = useState(0);
+  const [filmPlaying, setFilmPlaying] = useState(true);
   const [trayCount, setTrayCount] = useState(0);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterState, setNewsletterState] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [newsletterMessage, setNewsletterMessage] = useState("");
+  const filmRef = useRef<HTMLVideoElement>(null);
 
   const sizePremiums = [0, 900, 2400, 6600];
   const total = selectedModel.basePrice + sizePremiums[selectedSize] + selectedWallCount(wallSides) * 1190;
@@ -2123,6 +2148,13 @@ export default function Home() {
     );
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const film = filmRef.current;
+    if (!film) return;
+    if (filmPlaying) void film.play().catch(() => setFilmPlaying(false));
+    else film.pause();
+  }, [activeFilm, filmPlaying]);
 
   useEffect(() => {
     const reveal = new IntersectionObserver(
@@ -2260,6 +2292,7 @@ export default function Home() {
         <a className="brand" href="#top" aria-label="Coordinatez home">COORDINATEZ<span>®</span></a>
         <nav className={menuOpen ? "is-open" : ""} aria-label="Main navigation">
           <a href="#gen-2" onClick={() => setMenuOpen(false)}>Models</a>
+          <a href="#films" onClick={() => setMenuOpen(false)}>Films</a>
           <a href="#gen-1" onClick={() => setMenuOpen(false)}>Original</a>
           <button onClick={() => { openModel(modelRanges[0].models[0]); setMenuOpen(false); }}>3D Studio</button>
           <a href="#contact" onClick={() => setMenuOpen(false)}>Contact us</a>
@@ -2301,6 +2334,60 @@ export default function Home() {
             <span><small>Control</small><b>Motorized louvers</b></span>
           </div>
           <div className="hero-scroll" aria-hidden="true"><span>Scroll to compare</span><i /></div>
+        </section>
+
+        <section className="prototype-showcase" id="films">
+          <div className="prototype-heading range-reveal is-visible">
+            <div><span>Three ways to live with AXIS</span><h2>A moving product story.</h2></div>
+            <p>Original Coordinatez concept films pair the product system with the moments it is designed to make possible.</p>
+          </div>
+          <div className="prototype-stage">
+            <video
+              key={prototypeFilms[activeFilm].id}
+              ref={filmRef}
+              className="prototype-video"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              poster={prototypeFilms[activeFilm].poster}
+              aria-label={`${prototypeFilms[activeFilm].label} concept film`}
+            >
+              <source src={prototypeFilms[activeFilm].video} type="video/mp4" />
+            </video>
+            <div className="prototype-shade" aria-hidden="true" />
+            <div className="prototype-stage-topline"><span>COORDINATEZ PRODUCT FILM</span><i>0{activeFilm + 1} / 03</i></div>
+            <div className="prototype-story" key={`story-${activeFilm}`}>
+              <span>{prototypeFilms[activeFilm].eyebrow}</span>
+              <h2>{prototypeFilms[activeFilm].title}</h2>
+              <p>{prototypeFilms[activeFilm].copy}</p>
+              <div><b>{prototypeFilms[activeFilm].stat}</b><button onClick={() => openModel(modelRanges[0].models[1])}>Explore in 3D <i>↗</i></button></div>
+            </div>
+            <button
+              className="prototype-play"
+              onClick={() => setFilmPlaying((playing) => !playing)}
+              aria-label={filmPlaying ? "Pause product film" : "Play product film"}
+            >
+              <i>{filmPlaying ? "Ⅱ" : "▶"}</i><span>{filmPlaying ? "Pause film" : "Play film"}</span>
+            </button>
+            <div className="prototype-progress" aria-hidden="true"><i className={filmPlaying ? "is-playing" : ""} key={`${activeFilm}-${filmPlaying}`} /></div>
+          </div>
+          <div className="prototype-chapters" role="tablist" aria-label="Choose a product film">
+            {prototypeFilms.map((film, index) => (
+              <button
+                key={film.id}
+                className={activeFilm === index ? "is-active" : ""}
+                onClick={() => { setActiveFilm(index); setFilmPlaying(true); }}
+                role="tab"
+                aria-selected={activeFilm === index}
+              >
+                <span className="prototype-thumb"><span style={{ backgroundImage: `url(${film.poster})` }} aria-hidden="true" /><i>{film.index}</i></span>
+                <span><small>{film.eyebrow}</small><b>{film.label}</b></span>
+                <em>↗</em>
+              </button>
+            ))}
+          </div>
         </section>
 
         {modelRanges.map((range) => (
