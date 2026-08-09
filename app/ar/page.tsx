@@ -1,7 +1,8 @@
 "use client";
 
+/* eslint-disable @next/next/no-html-link-for-pages -- Native anchors avoid the framework prefetch error on this standalone AR route. */
+
 import Image from "next/image";
-import Link from "next/link";
 import { createElement, useEffect, useState } from "react";
 
 const sizeOptions = [
@@ -114,9 +115,9 @@ export default function AugmentedRealityPage() {
   return (
     <main className="native-ar-page">
       <header className="native-ar-header">
-        <Link className="native-ar-brand" href="/" aria-label="Coordinatez home">COORDINATEZ</Link>
+        <a className="native-ar-brand" href="/" aria-label="Coordinatez home">COORDINATEZ</a>
         <span>AXIS / NATIVE AR</span>
-        <Link href="/#configure">Back to configurator <i>↙</i></Link>
+        <a href="/#configure">Back to configurator <i>↙</i></a>
       </header>
 
       <section className="native-ar-stage">

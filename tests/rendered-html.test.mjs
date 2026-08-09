@@ -130,6 +130,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(css, /prototype-showcase/);
   assert.match(css, /scroll-snap-type:\s*x mandatory/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /\.site-header \{ position: relative; top: auto; height: 68px; \}/);
   assert.match(layout, /AXIS POWER\+ Gen 2/);
   assert.match(subscriberRoute, /newsletterSubscribers/);
   assert.match(migration, /CREATE TABLE `newsletter_subscribers`/);

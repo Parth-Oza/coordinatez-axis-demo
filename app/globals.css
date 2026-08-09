@@ -482,7 +482,7 @@ footer > div:not(.footer-brand) { display:flex;flex-direction:column;align-items
 
 @media (max-width: 820px) {
   .announcement { min-height: 50px; }.announcement-copy{grid-template-columns:auto 1fr;gap:20px;padding-right:18vw}.announcement-copy p{display:none}.announcement-copy a{font-size:9px}.announcement-art{width:27%}
-  .site-header { height: 68px; }.site-header nav{position:absolute;top:68px;left:0;right:0;padding:28px 5vw;display:none;flex-direction:column;align-items:flex-start;background:#f6f5f0;border-bottom:1px solid var(--line)}.site-header nav.is-open{display:flex}.menu-button{display:grid}.round-button{display:none}
+  .site-header { position: relative; top: auto; height: 68px; }.site-header nav{position:absolute;top:68px;left:0;right:0;padding:28px 5vw;display:none;flex-direction:column;align-items:flex-start;background:#f6f5f0;border-bottom:1px solid var(--line)}.site-header nav.is-open{display:flex}.menu-button{display:grid}.round-button{display:none}
   .product-section { display: block; }.visual-column{position:relative;top:0;min-height:auto;border-right:0}.viewer-shell{height:64vh;min-height:480px}.viewer-controls{overflow-x:auto;justify-content:flex-start}.configurator{padding:45px 5vw 55px}.configurator h1{font-size:49px}
   .signal-strip { justify-content:flex-start; overflow:hidden; }
   .sun-dial { width: 100%; margin: 25px 0 0; }.performance-grid{grid-template-columns:1fr}.feature-card{min-height:310px;border-right:0;border-bottom:1px solid rgba(255,255,255,.14)}
