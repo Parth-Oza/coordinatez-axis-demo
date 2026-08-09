@@ -77,6 +77,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /coordinatez-desert-panorama\.png/);
   assert.match(page, /addLoungeChair/);
   assert.match(page, /addPatioSofa/);
+  assert.match(page, /chaiseCushion/);
   assert.match(page, /barbecue/);
   assert.match(page, /model-studio-dialog/);
   assert.match(page, /IntersectionObserver/);

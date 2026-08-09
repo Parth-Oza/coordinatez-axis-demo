@@ -1173,16 +1173,25 @@ function RealPergolaViewer({
       addBox(sofa, [2.46, 0.2, 0.88], [0, 0.32, 0], furnitureMetal, true, true);
       addBox(sofa, [2.34, 0.16, 0.68], [0, 0.51, 0.05], accentMaterial, true, true);
       addBox(sofa, [2.34, 0.56, 0.12], [0, 0.78, -0.39], furnitureMetal, true, true);
+      addBox(sofa, [0.78, 0.2, 1.78], [-0.78, 0.32, 0.48], furnitureMetal, true, true);
+      addBox(sofa, [0.68, 0.16, 1.66], [-0.78, 0.51, 0.5], accentMaterial, true, true);
+      const chaiseCushion = addBox(sofa, [0.68, 0.19, 1.58], [-0.78, 0.63, 0.52], upholsteryMaterial, true, true);
+      chaiseCushion.rotation.x = -0.012;
       for (const x of [-0.78, 0, 0.78]) {
-        const seatCushion = addBox(sofa, [0.7, 0.19, 0.68], [x, 0.63, 0.06], upholsteryMaterial, true, true);
-        seatCushion.rotation.x = -0.018;
+        if (x !== -0.78) {
+          const seatCushion = addBox(sofa, [0.7, 0.19, 0.68], [x, 0.63, 0.06], upholsteryMaterial, true, true);
+          seatCushion.rotation.x = -0.018;
+        }
         const backCushion = addBox(sofa, [0.7, 0.66, 0.18], [x, 0.94, -0.3], upholsteryMaterial, true, true);
         backCushion.rotation.x = -0.11;
       }
       for (const side of [-1.23, 1.23]) {
-        addBox(sofa, [0.17, 0.49, 0.84], [side, 0.54, 0], furnitureMetal, true, true);
-        addBox(sofa, [0.13, 0.11, 0.76], [side, 0.82, 0], accentMaterial, true, true);
-        for (const z of [-0.3, 0.3]) addBox(sofa, [0.09, 0.26, 0.09], [side, 0.13, z], furnitureMetal, true, true);
+        const armDepth = side < 0 ? 1.72 : 0.84;
+        const armZ = side < 0 ? 0.43 : 0;
+        addBox(sofa, [0.17, 0.49, armDepth], [side, 0.54, armZ], furnitureMetal, true, true);
+        addBox(sofa, [0.13, 0.11, armDepth - 0.08], [side, 0.82, armZ], accentMaterial, true, true);
+        const legPositions = side < 0 ? [-0.33, 1.16] : [-0.3, 0.3];
+        for (const z of legPositions) addBox(sofa, [0.09, 0.26, 0.09], [side, 0.13, z], furnitureMetal, true, true);
       }
       const leftPillow = addBox(sofa, [0.42, 0.44, 0.14], [-0.88, 0.94, -0.14], pillowMaterial, true, true);
       leftPillow.rotation.z = -0.13;
@@ -1191,11 +1200,10 @@ function RealPergolaViewer({
       furniture.add(sofa);
     };
     addPatioSofa();
-    addLoungeChair(-1.05, 0.35, -0.1);
-    addLoungeChair(0.15, 0.48, 0.1);
-    addBox(furniture, [1.35, 0.12, 0.72], [-0.42, 0.4, 1.18], accentMaterial, true, true);
-    for (const x of [-0.93, 0.09]) {
-      for (const z of [0.91, 1.45]) addBox(furniture, [0.07, 0.39, 0.07], [x, 0.2, z], furnitureMetal, true, true);
+    addLoungeChair(0.95, 1.18, Math.PI);
+    addBox(furniture, [1.25, 0.12, 0.68], [0.16, 0.4, 0.52], accentMaterial, true, true);
+    for (const x of [-0.3, 0.62]) {
+      for (const z of [0.27, 0.77]) addBox(furniture, [0.07, 0.39, 0.07], [x, 0.2, z], furnitureMetal, true, true);
     }
 
     const barbecue = new THREE.Group();
