@@ -5,6 +5,8 @@
 import Image from "next/image";
 import { createElement, useEffect, useState } from "react";
 
+const PUBLIC_AR_ORIGIN = "https://coordinatez-axis-demo.ozaparth055.workers.dev";
+
 const sizeOptions = [
   { slug: "10x10", label: "10′ × 10′", metric: "3.05 × 3.05 m", posts: "4 posts" },
   { slug: "10x13", label: "10′ × 13′", metric: "3.05 × 3.96 m", posts: "4 posts" },
@@ -25,6 +27,7 @@ type NativeModelViewer = HTMLElement & {
   canActivateAR?: boolean;
   loaded?: boolean;
   updateComplete?: Promise<unknown>;
+  jumpCameraToGoal?: () => void;
 };
 
 type ModelViewerEvent = Event & { detail?: { status?: string; url?: string } };
@@ -47,6 +50,10 @@ export default function AugmentedRealityPage() {
   const [arAvailable, setArAvailable] = useState<boolean | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [launching, setLaunching] = useState(false);
+  const [trackingStep, setTrackingStep] = useState(0);
+  const [previewOrbit, setPreviewOrbit] = useState(38);
+  const [showMeasurements, setShowMeasurements] = useState(true);
+  const [shareMessage, setShareMessage] = useState("");
   const [arMessage, setArMessage] = useState("Preparing the true-scale 3D model…");
 
   useEffect(() => {
@@ -114,15 +121,15 @@ export default function AugmentedRealityPage() {
     const handleArStatus = (event: Event) => {
       if (!active) return;
       const status = (event as ModelViewerEvent).detail?.status;
-      if (status === "session-started") setArMessage("AR opened. Move slowly to detect the floor, then tap to place AXIS.");
-      if (status === "object-placed") setArMessage("AXIS is placed at true scale. Walk the perimeter to check clearance.");
+      if (status === "session-started") { setTrackingStep(1); setArMessage("AR opened. Move slowly to detect the floor, then tap to place AXIS."); }
+      if (status === "object-placed") { setTrackingStep(3); setArMessage("AXIS is placed at true scale. Walk the perimeter to check clearance."); }
       if (status === "failed") setArMessage("Native AR could not start in this browser. Try Chrome on Android or Safari on iPhone.");
     };
     const handleArTracking = (event: Event) => {
       if (!active) return;
       const status = (event as ModelViewerEvent).detail?.status;
-      if (status === "not-tracking") setArMessage("Move the phone more slowly and keep the patio floor in view.");
-      if (status === "tracking") setArMessage("Floor detected. Tap once to place AXIS at true scale.");
+      if (status === "not-tracking") { setTrackingStep(1); setArMessage("Move the phone more slowly and keep the patio floor in view."); }
+      if (status === "tracking") { setTrackingStep(2); setArMessage("Floor detected. Tap once to place AXIS at true scale."); }
     };
 
     modelViewer.addEventListener("load", handleLoad);
@@ -181,7 +188,36 @@ export default function AugmentedRealityPage() {
     setModelReady(false);
     setModelError("");
     setArAvailable(null);
+    setTrackingStep(0);
     setArMessage(message);
+  };
+
+  const rotatePreview = (delta: number) => {
+    const next = (previewOrbit + delta + 360) % 360;
+    setPreviewOrbit(next);
+    const modelViewer = document.querySelector<NativeModelViewer>("#coordinatez-ar-model");
+    modelViewer?.setAttribute("camera-orbit", `${next}deg 66deg auto`);
+    modelViewer?.removeAttribute("auto-rotate");
+    modelViewer?.jumpCameraToGoal?.();
+  };
+  const resetPreview = () => {
+    setPreviewOrbit(38);
+    const modelViewer = document.querySelector<NativeModelViewer>("#coordinatez-ar-model");
+    modelViewer?.setAttribute("camera-orbit", "38deg 66deg auto");
+    modelViewer?.setAttribute("auto-rotate", "");
+    modelViewer?.jumpCameraToGoal?.();
+    setArMessage("Preview reset. Drag to orbit or place AXIS at true scale on a supported phone.");
+  };
+  const shareAR = async () => {
+    const url = `${PUBLIC_AR_ORIGIN}/ar?size=${size}&finish=${finish}`;
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
+      else if (navigator.share) await navigator.share({ title: "Coordinatez AXIS AR", text: `${configuration.label} · ${finishLabel}`, url });
+      else throw new Error("Sharing is unavailable");
+      setShareMessage("AR link ready to share.");
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") setShareMessage("Copy this page URL to share the AR configuration.");
+    }
   };
   const retryModel = () => {
     prepareModelChange(`Retrying the ${configuration.label} ${finishLabel} model…`);
@@ -228,6 +264,14 @@ export default function AugmentedRealityPage() {
         <div className="native-ar-viewer-wrap">
           <div className="native-ar-eyebrow"><i /> True scale · 1 unit = 1 metre</div>
           {viewer}
+          <div className="native-ar-reticle" aria-hidden="true"><i /><span>Floor placement point</span></div>
+          {showMeasurements && <div className="native-ar-measurements" aria-label={`Overall footprint ${configuration.metric}`}><span className="is-width"><i />{configuration.metric.split(" × ")[0]} m<i /></span><span className="is-depth"><i />{configuration.metric.split(" × ")[1]?.replace(" m", "")} m<i /></span></div>}
+          <div className="native-ar-view-tools" aria-label="3D preview controls">
+            <button onClick={() => rotatePreview(-30)} aria-label="Rotate preview left">↶</button>
+            <button onClick={resetPreview}>Reset view</button>
+            <button onClick={() => rotatePreview(30)} aria-label="Rotate preview right">↷</button>
+            <button className={showMeasurements ? "is-active" : ""} onClick={() => setShowMeasurements((visible) => !visible)} aria-pressed={showMeasurements}>Dimensions</button>
+          </div>
           {!modelReady && (
             <div className={`native-ar-loading ${modelError ? "is-error" : ""}`} role={modelError ? "alert" : undefined}>
               {modelError ? (
@@ -284,6 +328,18 @@ export default function AugmentedRealityPage() {
             <i aria-hidden="true">AR</i><span><b>{primaryLabel}</b><small>{primaryHint}</small></span><em>↗</em>
           </button>
           <p className="native-ar-status" aria-live="polite">{arMessage}</p>
+
+          <div className="native-ar-placement-progress" aria-label="AR placement progress">
+            {[
+              ["Scan", "Move across the floor"],
+              ["Detect", "Find a stable surface"],
+              ["Place", "Tap an anchor point"],
+              ["Review", "Walk the perimeter"],
+            ].map(([label, note], index) => <div key={label} className={trackingStep > index ? "is-complete" : trackingStep === index ? "is-active" : ""}><i>{trackingStep > index ? "✓" : index + 1}</i><span><b>{label}</b><small>{note}</small></span></div>)}
+          </div>
+
+          <button className="native-ar-share" onClick={() => void shareAR()}><span>Share this AR configuration</span><b>↗</b></button>
+          <p className="native-ar-share-status" aria-live="polite">{shareMessage}</p>
 
           <div className="native-ar-device-fallback">
             <div>

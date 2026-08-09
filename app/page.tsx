@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -16,12 +17,28 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 
 declare const __BRIEF_API_URL_B64__: string | undefined;
 
+const PUBLIC_DEMO_ORIGIN = "https://coordinatez-axis-demo.ozaparth055.workers.dev";
+
 type Vec3 = { x: number; y: number; z: number };
 type Face = { points: { x: number; y: number }[]; depth: number; color: string };
 type WallSide = "front" | "rear" | "left" | "right";
 type WallSelections = Record<WallSide, boolean>;
 type SceneTheme = "garden" | "desert";
 type MechanismSound = "louvers" | "wall";
+type WeatherMode = "clear" | "sun" | "rain" | "evening" | "wind";
+type SavedDesign = {
+  id: string;
+  name: string;
+  sizeIndex: number;
+  finishIndex: number;
+  wallSides: WallSelections;
+  heater: boolean;
+  furnished: boolean;
+  theme: SceneTheme;
+  weather: WeatherMode;
+  total: number;
+  createdAt: string;
+};
 type BriefForm = {
   name: string;
   email: string;
@@ -121,17 +138,27 @@ const emptyBrief: BriefForm = {
 };
 
 const sizes = [
-  { label: "10′ × 10′", meta: "4 posts", price: 6890 },
-  { label: "10′ × 13′", meta: "4 posts", price: 7790 },
-  { label: "13′ × 13′", meta: "4 posts", price: 9290 },
-  { label: "13′ × 20′", meta: "6 posts", price: 13490 },
+  { label: "10′ × 10′", meta: "4 posts", price: 6890, slug: "10x10", width: 10, depth: 10 },
+  { label: "10′ × 13′", meta: "4 posts", price: 7790, slug: "10x13", width: 10, depth: 13 },
+  { label: "13′ × 13′", meta: "4 posts", price: 9290, slug: "13x13", width: 13, depth: 13 },
+  { label: "13′ × 20′", meta: "6 posts", price: 13490, slug: "13x20", width: 13, depth: 20 },
 ];
 
 const finishes = [
-  { name: "Carbon", value: "#414946" },
-  { name: "Cloud", value: "#d5d8d3" },
-  { name: "Sand", value: "#a78d67" },
+  { name: "Carbon", value: "#414946", slug: "carbon" },
+  { name: "Cloud", value: "#d5d8d3", slug: "cloud" },
+  { name: "Sand", value: "#a78d67", slug: "sand" },
 ];
+
+const weatherPresets: Array<{ mode: WeatherMode; label: string; note: string; icon: string }> = [
+  { mode: "clear", label: "Clear", note: "Open-air daylight", icon: "○" },
+  { mode: "sun", label: "Strong sun", note: "Louvers shade the room", icon: "☀" },
+  { mode: "rain", label: "Rain", note: "Roof seals and drains", icon: "≋" },
+  { mode: "evening", label: "Evening", note: "Perimeter light warms", icon: "◐" },
+  { mode: "wind", label: "High wind", note: "Screens safely retract", icon: "≈" },
+];
+
+const configurationSteps = ["Footprint", "Finish", "Screens", "Comfort", "Environment", "Weather", "Review"];
 
 const announcementSlides = [
   {
@@ -622,6 +649,7 @@ function RealPergolaViewer({
   sizeIndex,
   wallSides,
   theme,
+  furnished = true,
 }: {
   finish: string;
   louversOpen: boolean;
@@ -630,17 +658,18 @@ function RealPergolaViewer({
   sizeIndex: number;
   wallSides: WallSelections;
   theme: SceneTheme;
+  furnished?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, wallSides, theme });
+  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, wallSides, theme, furnished });
   const [viewerReady, setViewerReady] = useState(false);
   const [webglFailed, setWebglFailed] = useState(false);
 
   useEffect(() => {
-    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, wallSides, theme };
-  }, [dusk, finish, louversOpen, theme, wallSides, yardVisible]);
+    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, wallSides, theme, furnished };
+  }, [dusk, finish, furnished, louversOpen, theme, wallSides, yardVisible]);
 
   const resetView = useCallback(() => {
     const camera = cameraRef.current;
@@ -1398,6 +1427,7 @@ function RealPergolaViewer({
       const delta = Math.min((now - previousFrame) / 1000, 0.05);
       previousFrame = now;
       const state = liveStateRef.current;
+      furniture.visible = state.furnished;
       const targetColor = new THREE.Color(state.finish);
       aluminum.color.lerp(targetColor, 0.09);
       louverMaterial.color.lerp(targetColor.clone().offsetHSL(0, 0, -0.025), 0.09);
@@ -1583,6 +1613,253 @@ function ThemePicker({
   );
 }
 
+function WeatherSimulator({
+  mode,
+  onSelect,
+  soundEnabled,
+  onToggleSound,
+}: {
+  mode: WeatherMode;
+  onSelect: (mode: WeatherMode) => void;
+  soundEnabled: boolean;
+  onToggleSound: () => void;
+}) {
+  const active = weatherPresets.find((preset) => preset.mode === mode) ?? weatherPresets[0];
+  return (
+    <section className={`weather-simulator is-${mode}`} id="config-step-5" aria-label="Weather automation demonstration">
+      <div className="weather-head">
+        <div><span>Live automation</span><h3>The weather, on your terms.</h3></div>
+        <button className={soundEnabled ? "is-on" : ""} onClick={onToggleSound} aria-pressed={soundEnabled}><i>{soundEnabled ? "◖))" : "◖"}</i>{soundEnabled ? "Sound on" : "Sound off"}</button>
+      </div>
+      <div className="weather-presets" role="list" aria-label="Choose a weather condition">
+        {weatherPresets.map((preset) => (
+          <button key={preset.mode} className={mode === preset.mode ? "is-active" : ""} onClick={() => onSelect(preset.mode)} aria-pressed={mode === preset.mode}>
+            <i aria-hidden="true">{preset.icon}</i><span><b>{preset.label}</b><small>{preset.note}</small></span>
+          </button>
+        ))}
+      </div>
+      <div className="weather-response" aria-live="polite"><i /><span><b>{active.label} sequence active</b><small>{active.note}. The louvers, screens and lighting update together.</small></span></div>
+    </section>
+  );
+}
+
+function PhotoPlanner({
+  sizeIndex,
+  finishIndex,
+  louversOpen,
+  onClose,
+  onProject,
+}: {
+  sizeIndex: number;
+  finishIndex: number;
+  louversOpen: boolean;
+  onClose: () => void;
+  onProject: () => void;
+}) {
+  const [photo, setPhoto] = useState("/coordinatez-lifestyle-family.png");
+  const [photoName, setPhotoName] = useState("Coordinatez garden study");
+  const [scale, setScale] = useState(68);
+  const [x, setX] = useState(50);
+  const [y, setY] = useState(69);
+  const [rotation, setRotation] = useState(0);
+  const [perspective, setPerspective] = useState(16);
+  const [patioWidth, setPatioWidth] = useState(18);
+  const [message, setMessage] = useState("Position the structure, then export a client-ready concept image.");
+  const ownedUrl = useRef<string | null>(null);
+  const configuration = sizes[sizeIndex];
+  const finish = finishes[finishIndex];
+  const clearance = (patioWidth - configuration.width) / 2;
+
+  useEffect(() => () => {
+    if (ownedUrl.current) URL.revokeObjectURL(ownedUrl.current);
+  }, []);
+
+  const uploadPhoto = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage("Choose a JPG, PNG, HEIC or WebP patio photo.");
+      return;
+    }
+    if (file.size > 18 * 1024 * 1024) {
+      setMessage("That image is too large. Choose a photo below 18 MB.");
+      return;
+    }
+    if (ownedUrl.current) URL.revokeObjectURL(ownedUrl.current);
+    const url = URL.createObjectURL(file);
+    ownedUrl.current = url;
+    setPhoto(url);
+    setPhotoName(file.name);
+    setMessage("Photo loaded. Match the floor line and known patio width for a convincing scale study.");
+  };
+
+  const exportConcept = async () => {
+    setMessage("Rendering the Coordinatez concept image…");
+    try {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.src = photo;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = 1600;
+      canvas.height = 900;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas unavailable");
+      const cover = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight);
+      const drawWidth = image.naturalWidth * cover;
+      const drawHeight = image.naturalHeight * cover;
+      context.drawImage(image, (canvas.width - drawWidth) / 2, (canvas.height - drawHeight) / 2, drawWidth, drawHeight);
+      const modelScale = (scale / 100) * 1.08;
+      const roofWidth = 760 * modelScale;
+      const roofDepth = Math.min(330, 210 * (configuration.depth / configuration.width)) * modelScale;
+      const postHeight = 285 * modelScale;
+      context.save();
+      context.translate(canvas.width * x / 100, canvas.height * y / 100);
+      context.rotate(rotation * Math.PI / 180);
+      context.globalAlpha = 0.38;
+      context.fillStyle = "#050806";
+      context.beginPath();
+      context.ellipse(0, 20, roofWidth * 0.62, roofDepth * 0.46, 0, 0, Math.PI * 2);
+      context.fill();
+      context.globalAlpha = 1;
+      const inset = perspective * modelScale;
+      context.fillStyle = finish.value;
+      context.strokeStyle = "rgba(255,255,255,.38)";
+      context.lineWidth = 3;
+      context.beginPath();
+      context.moveTo(-roofWidth / 2, -postHeight);
+      context.lineTo(roofWidth / 2, -postHeight);
+      context.lineTo(roofWidth / 2 - inset, -postHeight + roofDepth);
+      context.lineTo(-roofWidth / 2 + inset, -postHeight + roofDepth);
+      context.closePath();
+      context.fill();
+      context.stroke();
+      context.strokeStyle = "rgba(10,15,12,.68)";
+      context.lineWidth = Math.max(3, 7 * modelScale);
+      const louverCount = 17;
+      for (let index = 1; index < louverCount; index += 1) {
+        const progress = index / louverCount;
+        const left = -roofWidth / 2 + inset * progress;
+        const right = roofWidth / 2 - inset * progress;
+        const lineY = -postHeight + roofDepth * progress;
+        context.beginPath();
+        context.moveTo(left, lineY);
+        context.lineTo(right, lineY + (louversOpen ? 9 * modelScale : 0));
+        context.stroke();
+      }
+      context.strokeStyle = finish.value;
+      context.lineWidth = Math.max(12, 22 * modelScale);
+      for (const [postX, postY] of [[-roofWidth / 2 + 8, -postHeight + 7], [roofWidth / 2 - 8, -postHeight + 7], [-roofWidth / 2 + inset + 8, -postHeight + roofDepth - 7], [roofWidth / 2 - inset - 8, -postHeight + roofDepth - 7]] as const) {
+        context.beginPath();
+        context.moveTo(postX, postY);
+        context.lineTo(postX, 0);
+        context.stroke();
+      }
+      context.restore();
+      const shade = context.createLinearGradient(0, canvas.height - 170, 0, canvas.height);
+      shade.addColorStop(0, "rgba(5,10,7,0)");
+      shade.addColorStop(1, "rgba(5,10,7,.82)");
+      context.fillStyle = shade;
+      context.fillRect(0, canvas.height - 190, canvas.width, 190);
+      context.fillStyle = "#c9ff61";
+      context.font = "700 22px Arial, sans-serif";
+      context.fillText("COORDINATEZ / PHOTO PATIO PLANNER", 52, 820);
+      context.fillStyle = "#ffffff";
+      context.font = "500 29px Arial, sans-serif";
+      context.fillText(`AXIS POWER+ · ${configuration.label} · ${finish.name}`, 52, 862);
+      context.textAlign = "right";
+      context.font = "500 19px Arial, sans-serif";
+      context.fillText("CONCEPT VISUALIZATION · VERIFY SITE DIMENSIONS", 1548, 858);
+      const link = document.createElement("a");
+      link.download = `coordinatez-axis-${configuration.slug}-${finish.slug}-concept.jpg`;
+      link.href = canvas.toDataURL("image/jpeg", 0.92);
+      link.click();
+      setMessage("Concept image exported with the Coordinatez project mark.");
+    } catch {
+      setMessage("The concept image could not be exported. Try another JPG or PNG photo.");
+    }
+  };
+
+  return (
+    <div className="planner-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="planner-dialog" role="dialog" aria-modal="true" aria-labelledby="planner-title">
+        <header><div><span>Coordinatez spatial studio</span><h2 id="planner-title">Photo Patio Planner</h2></div><button onClick={onClose} aria-label="Close photo planner">×</button></header>
+        <div className="planner-workspace">
+          <div className="planner-stage">
+            {/* Local object URLs must remain unoptimized so uploaded photos never leave the device. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt="Patio background selected for the planning study" />
+            <div className="planner-floor-line" style={{ top: `${y}%` }}><span>calibrated floor line</span></div>
+            <div className="planner-model" style={{ "--planner-x": `${x}%`, "--planner-y": `${y}%`, "--planner-scale": scale / 100, "--planner-rotate": `${rotation}deg`, "--planner-perspective": `${perspective}px`, "--planner-finish": finish.value } as React.CSSProperties} aria-label={`${configuration.label} pergola photo overlay`}>
+              <i className="planner-shadow" /><div className="planner-roof">{Array.from({ length: 12 }).map((_, index) => <i key={index} />)}</div><i className="planner-post p1" /><i className="planner-post p2" /><i className="planner-post p3" /><i className="planner-post p4" /><b>COORDINATEZ</b>
+            </div>
+            <div className="planner-watermark">COORDINATEZ <span>CONCEPT STUDY</span></div>
+          </div>
+          <aside className="planner-controls">
+            <div className="planner-file"><span><small>Background photo</small><b>{photoName}</b></span><label>Upload patio photo<input type="file" accept="image/*" onChange={uploadPhoto} /></label></div>
+            <div className="planner-calibration"><label><span>Patio width</span><b>{patioWidth} ft</b><input type="range" min="8" max="40" step="1" value={patioWidth} onChange={(event) => setPatioWidth(Number(event.target.value))} /></label><p className={clearance < 0 ? "is-warning" : ""}>{clearance < 0 ? `AXIS exceeds the measured width by ${Math.abs(clearance * 2).toFixed(1)} ft.` : `${clearance.toFixed(1)} ft approximate clearance on each side.`}</p></div>
+            {[
+              ["Scale", scale, setScale, 35, 115, 1],
+              ["Horizontal", x, setX, 10, 90, 1],
+              ["Floor position", y, setY, 42, 92, 1],
+              ["Perspective", perspective, setPerspective, -40, 60, 1],
+              ["Rotation", rotation, setRotation, -18, 18, 1],
+            ].map(([label, value, setter, min, max, step]) => (
+              <label className="planner-slider" key={String(label)}><span>{String(label)}<b>{Number(value)}{label === "Rotation" ? "°" : ""}</b></span><input type="range" min={Number(min)} max={Number(max)} step={Number(step)} value={Number(value)} onChange={(event) => (setter as (next: number) => void)(Number(event.target.value))} /></label>
+            ))}
+            <p className="planner-message" aria-live="polite">{message}</p>
+            <div className="planner-actions"><button onClick={() => void exportConcept()}>Export concept image <b>↓</b></button><button onClick={onProject}>Add to project brief <b>→</b></button><a href={`${PUBLIC_DEMO_ORIGIN}/ar?size=${configuration.slug}&finish=${finish.slug}`}>Continue in AR <b>↗</b></a></div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DesignComparison({
+  current,
+  saved,
+  onClose,
+  onLoad,
+}: {
+  current: SavedDesign;
+  saved: SavedDesign[];
+  onClose: () => void;
+  onLoad: (design: SavedDesign) => void;
+}) {
+  const baseline = saved[0] ?? {
+    id: "baseline",
+    name: "Compact garden baseline",
+    sizeIndex: 0,
+    finishIndex: 0,
+    wallSides: { ...defaultWallSelections, rear: false, left: false },
+    heater: false,
+    furnished: true,
+    theme: "garden" as SceneTheme,
+    weather: "clear" as WeatherMode,
+    total: sizes[0].price + 2190,
+    createdAt: "Reference",
+  };
+  const cards = [current, baseline];
+  return (
+    <div className="design-compare-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="design-compare-dialog" role="dialog" aria-modal="true" aria-labelledby="compare-design-title">
+        <header><div><span>Coordinatez design desk</span><h2 id="compare-design-title">Compare configurations</h2></div><button onClick={onClose} aria-label="Close design comparison">×</button></header>
+        <div className="design-compare-grid">
+          {cards.map((design, index) => (
+            <article key={`${design.id}-${index}`} className={index === 0 ? "is-current" : ""}>
+              <span>{index === 0 ? "Current configuration" : "Saved reference"}</span><h3>{design.name}</h3>
+              <div className="design-swatch" style={{ "--design-finish": finishes[design.finishIndex].value } as React.CSSProperties}><i /><i /><i /><i /><b>AXIS</b></div>
+              <dl><div><dt>Footprint</dt><dd>{sizes[design.sizeIndex].label}</dd></div><div><dt>Finish</dt><dd>{finishes[design.finishIndex].name}</dd></div><div><dt>Motorized walls</dt><dd>{selectedWallCount(design.wallSides)}</dd></div><div><dt>Furniture</dt><dd>{design.furnished ? "Lounge + BBQ" : "Open plan"}</dd></div><div><dt>Weather scene</dt><dd>{weatherPresets.find((preset) => preset.mode === design.weather)?.label}</dd></div></dl>
+              <strong>{money(design.total)}</strong>{index !== 0 && <button onClick={() => onLoad(design)}>Load this design →</button>}
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ProductFilmShowcase({ onExplore }: { onExplore: () => void }) {
   const [activeFilm, setActiveFilm] = useState(0);
   const [filmPlaying, setFilmPlaying] = useState(true);
@@ -1717,7 +1994,16 @@ export function ProductStudio() {
   const [dusk, setDusk] = useState(false);
   const [theme, setTheme] = useState<SceneTheme>("garden");
   const [heater, setHeater] = useState(false);
+  const [furnished, setFurnished] = useState(true);
   const [wallSides, setWallSides] = useState<WallSelections>({ ...defaultWallSelections });
+  const [weatherMode, setWeatherMode] = useState<WeatherMode>("clear");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [configStep, setConfigStep] = useState(0);
+  const [plannerOpen, setPlannerOpen] = useState(false);
+  const [compareDesignsOpen, setCompareDesignsOpen] = useState(false);
+  const [savedDesigns, setSavedDesigns] = useState<SavedDesign[]>([]);
+  const [toolMessage, setToolMessage] = useState("");
+  const [pdfState, setPdfState] = useState<"idle" | "working" | "ready" | "error">("idle");
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
@@ -1732,9 +2018,28 @@ export function ProductStudio() {
     [heater, selectedSize, wallSides],
   );
 
+  const currentDesign = useMemo<SavedDesign>(() => ({
+    id: "current",
+    name: `${sizes[selectedSize].label} ${finishes[selectedFinish].name} study`,
+    sizeIndex: selectedSize,
+    finishIndex: selectedFinish,
+    wallSides: { ...wallSides },
+    heater,
+    furnished,
+    theme,
+    weather: weatherMode,
+    total,
+    createdAt: new Date().toISOString(),
+  }), [furnished, heater, selectedFinish, selectedSize, theme, total, wallSides, weatherMode]);
+
+  const playFeedback = (kind: MechanismSound) => {
+    if (soundEnabled) playMechanismSound(kind);
+  };
+
   const toggleWallSide = (side: WallSide) => {
-    playMechanismSound("wall");
+    playFeedback("wall");
     setWallSides((current) => ({ ...current, [side]: !current[side] }));
+    setWeatherMode("clear");
   };
 
   useEffect(() => {
@@ -1755,6 +2060,202 @@ export function ProductStudio() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const stored = JSON.parse(window.localStorage.getItem("coordinatez-saved-designs") ?? "[]") as SavedDesign[];
+        if (Array.isArray(stored)) setSavedDesigns(stored.slice(0, 6));
+      } catch {
+        window.localStorage.removeItem("coordinatez-saved-designs");
+      }
+
+      const query = new URLSearchParams(window.location.search);
+      const sizeIndex = sizes.findIndex((size) => size.slug === query.get("size"));
+      const finishIndex = finishes.findIndex((finish) => finish.slug === query.get("finish"));
+      if (sizeIndex >= 0) setSelectedSize(sizeIndex);
+      if (finishIndex >= 0) setSelectedFinish(finishIndex);
+      const queryTheme = query.get("theme");
+      if (queryTheme === "garden" || queryTheme === "desert") setTheme(queryTheme);
+      const queryWeather = query.get("weather");
+      if (weatherPresets.some((preset) => preset.mode === queryWeather)) {
+        setWeatherMode(queryWeather as WeatherMode);
+        setYardVisible(true);
+        if (queryWeather === "clear") { setLouversOpen(true); setDusk(false); setWallSides({ front: false, rear: false, left: false, right: false }); }
+        else if (queryWeather === "sun") { setLouversOpen(false); setDusk(false); setWallSides({ front: false, rear: false, left: false, right: false }); }
+        else if (queryWeather === "rain") { setLouversOpen(false); setDusk(false); setWallSides({ front: false, rear: true, left: true, right: false }); }
+        else if (queryWeather === "evening") { setLouversOpen(true); setDusk(true); setWallSides({ front: false, rear: true, left: false, right: false }); }
+        else { setLouversOpen(false); setDusk(false); setWallSides({ front: false, rear: false, left: false, right: false }); }
+      }
+      if (query.has("heater")) setHeater(query.get("heater") === "1");
+      if (query.has("furnished")) setFurnished(query.get("furnished") !== "0");
+      const queryWalls = query.get("walls");
+      if (queryWalls !== null) {
+        const selected = new Set(queryWalls.split(","));
+        setWallSides({ front: selected.has("front"), rear: selected.has("rear"), left: selected.has("left"), right: selected.has("right") });
+      }
+    });
+  }, []);
+
+  const goToConfigStep = (step: number) => {
+    const next = Math.max(0, Math.min(configurationSteps.length - 1, step));
+    setConfigStep(next);
+    document.getElementById(`config-step-${next}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const applyWeatherPreset = (mode: WeatherMode) => {
+    setWeatherMode(mode);
+    setYardVisible(true);
+    if (mode === "clear") {
+      setLouversOpen(true);
+      setDusk(false);
+      setWallSides({ front: false, rear: false, left: false, right: false });
+    } else if (mode === "sun") {
+      setLouversOpen(false);
+      setDusk(false);
+      setWallSides({ front: false, rear: false, left: false, right: false });
+    } else if (mode === "rain") {
+      setLouversOpen(false);
+      setDusk(false);
+      setWallSides({ front: false, rear: true, left: true, right: false });
+    } else if (mode === "evening") {
+      setLouversOpen(true);
+      setDusk(true);
+      setWallSides({ front: false, rear: true, left: false, right: false });
+    } else {
+      setLouversOpen(false);
+      setDusk(false);
+      setWallSides({ front: false, rear: false, left: false, right: false });
+    }
+    playFeedback(mode === "rain" ? "wall" : "louvers");
+  };
+
+  const saveCurrentDesign = () => {
+    const saved = { ...currentDesign, id: `axis-${Date.now()}`, createdAt: new Date().toISOString() };
+    const next = [saved, ...savedDesigns].slice(0, 6);
+    setSavedDesigns(next);
+    window.localStorage.setItem("coordinatez-saved-designs", JSON.stringify(next));
+    setToolMessage("Design saved on this device. It is ready to compare or reopen.");
+  };
+
+  const loadSavedDesign = (design: SavedDesign) => {
+    setSelectedSize(design.sizeIndex);
+    setSelectedFinish(design.finishIndex);
+    setHeater(design.heater);
+    setFurnished(design.furnished);
+    setTheme(design.theme);
+    applyWeatherPreset(design.weather);
+    setWallSides({ ...design.wallSides });
+    setCompareDesignsOpen(false);
+    setToolMessage(`${design.name} loaded into the live studio.`);
+    document.getElementById("configure")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const shareCurrentDesign = async () => {
+    const query = new URLSearchParams({
+      size: sizes[selectedSize].slug,
+      finish: finishes[selectedFinish].slug,
+      walls: wallSideOptions.filter(({ side }) => wallSides[side]).map(({ side }) => side).join(","),
+      heater: heater ? "1" : "0",
+      furnished: furnished ? "1" : "0",
+      theme,
+      weather: weatherMode,
+    });
+    const url = `${PUBLIC_DEMO_ORIGIN}/?${query.toString()}`;
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
+      else if (navigator.share) await navigator.share({ title: "Coordinatez AXIS configuration", text: `${sizes[selectedSize].label} · ${finishes[selectedFinish].name} · ${money(total)}`, url });
+      else throw new Error("Sharing is unavailable");
+      setToolMessage("Share link ready. It preserves every selected option.");
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") setToolMessage("Copy the current page URL to share this configuration.");
+    }
+  };
+
+  const exportProjectPdf = async () => {
+    setPdfState("working");
+    setToolMessage("Building the Coordinatez project package…");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const document = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
+      const cleanSize = sizes[selectedSize].label.replaceAll("′", " ft").replace("×", "x");
+      document.setFillColor(12, 18, 14);
+      document.rect(0, 0, 612, 154, "F");
+      document.setFillColor(201, 255, 97);
+      document.rect(42, 35, 7, 68, "F");
+      document.setTextColor(201, 255, 97);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(13);
+      document.text("COORDINATEZ / PROJECT STUDIO", 66, 54);
+      document.setTextColor(255, 255, 255);
+      document.setFontSize(30);
+      document.text("AXIS POWER+", 66, 91);
+      document.setFontSize(12);
+      document.setFont("helvetica", "normal");
+      document.text(`${cleanSize} / ${finishes[selectedFinish].name} / ${money(total)}`, 66, 117);
+      document.setTextColor(20, 29, 24);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(17);
+      document.text("Configured system", 42, 196);
+      const rows = [
+        ["Footprint", cleanSize],
+        ["Finish", finishes[selectedFinish].name],
+        ["Motorized walls", wallSideOptions.filter(({ side }) => wallSides[side]).map(({ label }) => label).join(", ") || "None"],
+        ["Furniture plan", furnished ? "L-shape lounge, table and barbecue" : "Open plan"],
+        ["Radiant heaters", heater ? "Dual 1500W package" : "Not selected"],
+        ["Environment", theme === "garden" ? "Garden retreat" : "Desert horizon"],
+        ["Weather scene", weatherPresets.find((preset) => preset.mode === weatherMode)?.label ?? "Clear"],
+        ["Configured estimate", money(total)],
+      ];
+      let rowY = 224;
+      document.setFontSize(10);
+      for (const [label, value] of rows) {
+        document.setDrawColor(216, 222, 217);
+        document.line(42, rowY + 20, 570, rowY + 20);
+        document.setFont("helvetica", "normal");
+        document.setTextColor(103, 116, 107);
+        document.text(label.toUpperCase(), 42, rowY + 12);
+        document.setFont("helvetica", "bold");
+        document.setTextColor(20, 29, 24);
+        document.text(value, 220, rowY + 12, { maxWidth: 348 });
+        rowY += 34;
+      }
+      document.setFillColor(239, 242, 237);
+      document.roundedRect(42, 514, 528, 128, 7, 7, "F");
+      document.setTextColor(20, 29, 24);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(15);
+      document.text("Installation and clearance review", 62, 548);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(10);
+      document.text("Confirm substrate, anchoring, drainage, electrical routing and local engineering before ordering. Use the live AR model to verify the full-size footprint on the intended patio.", 62, 572, { maxWidth: 336, lineHeightFactor: 1.45 });
+      const qrSource = `/ar/coordinatez-ar-qr-${sizes[selectedSize].slug}-${finishes[selectedFinish].slug}.png`;
+      const qrResponse = await fetch(qrSource);
+      if (qrResponse.ok) {
+        const qrBlob = await qrResponse.blob();
+        const qrData = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(qrBlob); });
+        document.addImage(qrData, "PNG", 446, 529, 94, 94);
+      }
+      document.setFontSize(8);
+      document.setTextColor(91, 104, 96);
+      document.text("SCAN FOR TRUE-SCALE AR", 446, 633);
+      document.setFillColor(12, 18, 14);
+      document.rect(0, 696, 612, 96, "F");
+      document.setTextColor(255, 255, 255);
+      document.setFontSize(10);
+      document.text("COORDINATEZ AXIS / CONCEPT CONFIGURATION", 42, 730);
+      document.setTextColor(201, 255, 97);
+      document.text(`${PUBLIC_DEMO_ORIGIN}/ar`, 42, 754);
+      document.setTextColor(173, 185, 176);
+      document.text("Concept estimate. Final specification requires a verified site review.", 570, 754, { align: "right" });
+      document.save(`coordinatez-axis-${sizes[selectedSize].slug}-${finishes[selectedFinish].slug}.pdf`);
+      setPdfState("ready");
+      setToolMessage("Branded project PDF downloaded with configuration, specifications and AR QR code.");
+    } catch {
+      setPdfState("error");
+      setToolMessage("The PDF could not be generated in this browser. Try Chrome, Safari or Edge.");
+    }
+  };
+
   const addToBrief = () => {
     setSubmitState("idle");
     setSubmitMessage("");
@@ -1762,16 +2263,21 @@ export function ProductStudio() {
   };
 
   useEffect(() => {
-    if (!briefOpen) return;
+    if (!briefOpen && !plannerOpen && !compareDesignsOpen) return;
     const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && setBriefOpen(false);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setBriefOpen(false);
+      setPlannerOpen(false);
+      setCompareDesignsOpen(false);
+    };
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", closeOnEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [briefOpen]);
+  }, [briefOpen, compareDesignsOpen, plannerOpen]);
 
   const submitBrief = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1796,6 +2302,8 @@ export function ProductStudio() {
             privacyScreen: selectedWallCount(wallSides) > 0,
             wallSides: wallSideOptions.filter(({ side }) => wallSides[side]).map(({ label }) => label),
             environmentTheme: theme,
+            furniturePlan: furnished ? "L-shape lounge, table and barbecue" : "Open plan",
+            weatherScene: weatherMode,
           },
         }),
       });
@@ -1853,12 +2361,14 @@ export function ProductStudio() {
               sizeIndex={selectedSize}
               wallSides={wallSides}
               theme={theme}
+              furnished={furnished}
             />
             <div className="viewer-controls" aria-label="3D model controls">
-              <Toggle active={louversOpen} onChange={() => { playMechanismSound("louvers"); setLouversOpen(!louversOpen); }} label="Open louvers" />
+              <Toggle active={louversOpen} onChange={() => { playFeedback("louvers"); setLouversOpen(!louversOpen); setWeatherMode("clear"); }} label="Open louvers" />
               <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Show landscape" />
-              <Toggle active={dusk} onChange={() => setDusk(!dusk)} label="Evening light" />
+              <Toggle active={dusk} onChange={() => { setDusk(!dusk); setWeatherMode(!dusk ? "evening" : "clear"); }} label="Evening light" />
             </div>
+            <WeatherSimulator mode={weatherMode} onSelect={applyWeatherPreset} soundEnabled={soundEnabled} onToggleSound={() => setSoundEnabled((enabled) => !enabled)} />
           </div>
 
           <div className="configurator">
@@ -1885,6 +2395,11 @@ export function ProductStudio() {
               <a href="#compare">Compare to others <b>↓</b></a>
             </div>
 
+            <div className="configuration-path" aria-label="Guided configuration steps">
+              <div><span>Guided design path</span><b>{String(configStep + 1).padStart(2, "0")} / {String(configurationSteps.length).padStart(2, "0")}</b></div>
+              <div>{configurationSteps.map((step, index) => <button key={step} className={configStep === index ? "is-active" : configStep > index ? "is-complete" : ""} onClick={() => goToConfigStep(index)}><i>{configStep > index ? "✓" : index + 1}</i><span>{step}</span></button>)}</div>
+            </div>
+
             <div className="option-group">
               <div className="option-heading"><span>Layout</span><b>Freestanding</b></div>
               <button className="layout-option is-selected">
@@ -1894,19 +2409,29 @@ export function ProductStudio() {
               </button>
             </div>
 
-            <div className="option-group">
-              <div className="option-heading"><span>Environment</span><b>{theme === "garden" ? "Garden" : "Desert"}</b></div>
-              <ThemePicker theme={theme} onChange={setTheme} />
+            <div className={`option-group guided-option ${configStep === 0 ? "is-active" : ""}`} id="config-step-0">
+              <div className="option-heading"><span>01 / Footprint</span><button onClick={() => setPlannerOpen(true)}>Check against a patio photo ↗</button></div>
+              <div className="size-grid">
+                {sizes.map((size, index) => (
+                  <button
+                    key={size.label}
+                    className={selectedSize === index ? "is-selected" : ""}
+                    onClick={() => { setSelectedSize(index); setConfigStep(1); }}
+                  >
+                    <b>{size.label}</b><small>{size.meta} · {size.width} × {size.depth} ft</small>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="option-group">
-              <div className="option-heading"><span>Finish</span><b>{finishes[selectedFinish].name}</b></div>
+            <div className={`option-group guided-option ${configStep === 1 ? "is-active" : ""}`} id="config-step-1">
+              <div className="option-heading"><span>02 / Finish</span><b>{finishes[selectedFinish].name}</b></div>
               <div className="finish-options">
                 {finishes.map((finish, index) => (
                   <button
                     key={finish.name}
                     className={selectedFinish === index ? "is-selected" : ""}
-                    onClick={() => setSelectedFinish(index)}
+                    onClick={() => { setSelectedFinish(index); setConfigStep(2); }}
                     aria-label={`Select ${finish.name} finish`}
                   >
                     <i style={{ background: finish.value }} />
@@ -1916,39 +2441,48 @@ export function ProductStudio() {
               </div>
             </div>
 
-            <div className="option-group">
-              <div className="option-heading"><span>Footprint</span><button>View dimensions ↗</button></div>
-              <div className="size-grid">
-                {sizes.map((size, index) => (
-                  <button
-                    key={size.label}
-                    className={selectedSize === index ? "is-selected" : ""}
-                    onClick={() => setSelectedSize(index)}
-                  >
-                    <b>{size.label}</b><small>{size.meta}</small>
-                  </button>
-                ))}
+            <div className={`option-group guided-option ${configStep === 2 ? "is-active" : ""}`} id="config-step-2">
+              <div className="option-heading"><span>03 / Motorized screens</span><b>{selectedWallCount(wallSides)} selected</b></div>
+              <div className="wall-configurator">
+                <div><span><b>Choose any side</b><small>Each elevation moves independently</small></span><strong>+ $1,190 each</strong></div>
+                <WallSidePicker walls={wallSides} onChange={(side) => { toggleWallSide(side); setConfigStep(3); }} />
               </div>
             </div>
 
-            <div className="option-group">
-              <div className="option-heading"><span>Complete the room</span><b>Optional</b></div>
+            <div className={`option-group guided-option ${configStep === 3 ? "is-active" : ""}`} id="config-step-3">
+              <div className="option-heading"><span>04 / Comfort</span><b>Furniture + heat</b></div>
               <label className="addon">
-                <input type="checkbox" checked={heater} onChange={(event) => setHeater(event.target.checked)} />
+                <input type="checkbox" checked={furnished} onChange={(event) => { setFurnished(event.target.checked); setConfigStep(4); }} />
+                <span className="checkmark" />
+                <span><b>L-shape lounge + barbecue</b><small>Full-scale spatial planning set</small></span>
+                <strong>Included</strong>
+              </label>
+              <label className="addon">
+                <input type="checkbox" checked={heater} onChange={(event) => { setHeater(event.target.checked); setConfigStep(4); }} />
                 <span className="checkmark" />
                 <span><b>Dual radiant heaters</b><small>2 × 1500W · graphite</small></span>
                 <strong>+ $798</strong>
               </label>
-              <div className="wall-configurator">
-                <div><span><b>Motorized side walls</b><small>Choose any elevation independently</small></span><strong>{selectedWallCount(wallSides)} selected</strong></div>
-                <WallSidePicker walls={wallSides} onChange={toggleWallSide} />
-              </div>
             </div>
 
-            <div className="purchase-block">
+            <div className={`option-group guided-option ${configStep === 4 ? "is-active" : ""}`} id="config-step-4">
+              <div className="option-heading"><span>05 / Environment</span><b>{theme === "garden" ? "Garden" : "Desert"}</b></div>
+              <ThemePicker theme={theme} onChange={(nextTheme) => { setTheme(nextTheme); setConfigStep(5); }} />
+            </div>
+
+            <div className={`purchase-block guided-option ${configStep === 6 ? "is-active" : ""}`} id="config-step-6">
               <div><span>Configured total</span><strong>{money(total)}</strong></div>
               <button onClick={addToBrief}>Add to project brief <span>→</span></button>
               <p><i /> Your configuration is attached automatically.</p>
+              <div className="project-tool-grid" aria-label="Project planning tools">
+                <button onClick={() => setPlannerOpen(true)}><i>▧</i><span><b>Photo planner</b><small>Place AXIS into a patio photo</small></span></button>
+                <button onClick={saveCurrentDesign}><i>＋</i><span><b>Save design</b><small>{savedDesigns.length} saved on this device</small></span></button>
+                <button onClick={() => void shareCurrentDesign()}><i>↗</i><span><b>Share link</b><small>Preserves every option</small></span></button>
+                <button onClick={() => setCompareDesignsOpen(true)}><i>Ⅱ</i><span><b>Compare designs</b><small>Current versus saved</small></span></button>
+                <button onClick={() => void exportProjectPdf()} disabled={pdfState === "working"}><i>PDF</i><span><b>{pdfState === "working" ? "Building PDF…" : "Project PDF"}</b><small>Specs, estimate and AR QR</small></span></button>
+                <a href={`${PUBLIC_DEMO_ORIGIN}/ar?size=${sizes[selectedSize].slug}&finish=${finishes[selectedFinish].slug}`}><i>AR</i><span><b>View in your space</b><small>True-scale phone placement</small></span></a>
+              </div>
+              <p className="project-tool-message" aria-live="polite">{toolMessage || "Save, compare, share or export this exact configuration."}</p>
             </div>
           </div>
         </section>
@@ -2082,6 +2616,10 @@ export function ProductStudio() {
         <div><b>Support</b><a href="#assembly">Assembly library</a><a href="#installation">Installation check</a><a href="#warranty">Trial & warranty</a></div>
         <div className="footer-note"><p>A complete Coordinatez AXIS product demonstration for planning a responsive outdoor room.</p><span>© 2026 Coordinatez Demo</span></div>
       </footer>
+
+      {plannerOpen && <PhotoPlanner sizeIndex={selectedSize} finishIndex={selectedFinish} louversOpen={louversOpen} onClose={() => setPlannerOpen(false)} onProject={() => { setPlannerOpen(false); addToBrief(); }} />}
+
+      {compareDesignsOpen && <DesignComparison current={currentDesign} saved={savedDesigns} onClose={() => setCompareDesignsOpen(false)} onLoad={loadSavedDesign} />}
 
       {briefOpen && (
         <div className="brief-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setBriefOpen(false)}>

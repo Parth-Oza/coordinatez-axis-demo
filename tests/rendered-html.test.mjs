@@ -42,6 +42,10 @@ test("server-renders the complete Coordinatez AXIS product experience", async ()
   assert.match(html, /Seven spaces\. One responsive roof/);
   assert.match(html, /See AXIS at full scale/);
   assert.match(html, /Start a project/);
+  assert.match(html, /Guided design path/);
+  assert.match(html, /The weather, on your terms/);
+  assert.match(html, /Photo planner/);
+  assert.match(html, /Project PDF/);
   assert.equal((html.match(/class="assembly-card reveal"/g) ?? []).length, 15);
   assert.equal((html.match(/class="lifestyle-card reveal scene-/g) ?? []).length, 7);
   assert.doesNotMatch(html, /Find your structure/);
@@ -113,6 +117,13 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /showroomScenes/);
   assert.match(page, /InstallationChecker/);
   assert.match(page, /ProductStudio/);
+  assert.match(page, /function PhotoPlanner/);
+  assert.match(page, /function DesignComparison/);
+  assert.match(page, /function WeatherSimulator/);
+  assert.match(page, /coordinatez-saved-designs/);
+  assert.match(page, /navigator\.share/);
+  assert.match(page, /import\("jspdf"\)/);
+  assert.match(page, /COORDINATEZ \/ PHOTO PATIO PLANNER/);
   assert.doesNotMatch(page, /requestSession\("immersive-ar"/);
   assert.doesNotMatch(page, /requestHitTestSource/);
   assert.doesNotMatch(page, /getUserMedia/);
@@ -131,6 +142,11 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(arPage, /allowsContentScaling=0/);
   assert.doesNotMatch(arPage, /native-ar-slot-button/);
   assert.match(arPage, /coordinatez-ar-qr-/);
+  assert.match(arPage, /native-ar-placement-progress/);
+  assert.match(arPage, /native-ar-reticle/);
+  assert.match(arPage, /rotatePreview/);
+  assert.match(arPage, /shareAR/);
+  assert.doesNotMatch(`${page}\n${arPage}\n${css}`, /chatgpt|openai/i);
   assert.equal(JSON.parse(arManifestText).length, 12);
   assert.match(arGenerator, /const postX = halfWidth - postSize \/ 2/);
   assert.match(arGenerator, /\[size\.width, beamHeight, beamDepth\]/);
@@ -160,4 +176,6 @@ test("server-renders the dedicated native AR handoff", async () => {
   assert.match(html, /Place in your space/);
   assert.match(html, /iPhone \/ iPad AR/);
   assert.match(html, /True scale/);
+  assert.match(html, /Share this AR configuration/);
+  assert.match(html, /Floor placement point/);
 });
