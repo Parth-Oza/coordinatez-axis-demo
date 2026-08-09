@@ -69,6 +69,54 @@ function selectedWallCount(walls: WallSelections) {
 
 let mechanismAudioContext: AudioContext | null = null;
 
+function startAmbientScore(moodIndex: number) {
+  if (typeof window === "undefined" || typeof window.AudioContext === "undefined") return () => undefined;
+  const context = new window.AudioContext();
+  const master = context.createGain();
+  const filter = context.createBiquadFilter();
+  const now = context.currentTime;
+  const chords = [[110, 164.81, 220], [98, 146.83, 196], [123.47, 185, 246.94]][moodIndex] ?? [110, 164.81, 220];
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(760, now);
+  filter.Q.setValueAtTime(0.7, now);
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.exponentialRampToValueAtTime(0.027, now + 1.4);
+  filter.connect(master);
+  master.connect(context.destination);
+
+  const oscillators = chords.map((frequency, index) => {
+    const oscillator = context.createOscillator();
+    const voice = context.createGain();
+    oscillator.type = index === 1 ? "triangle" : "sine";
+    oscillator.frequency.setValueAtTime(frequency / (index === 2 ? 2 : 1), now);
+    oscillator.detune.setValueAtTime(index * 3 - 2, now);
+    voice.gain.setValueAtTime(index === 0 ? 0.58 : 0.24, now);
+    oscillator.connect(voice);
+    voice.connect(filter);
+    oscillator.start(now);
+    return oscillator;
+  });
+
+  const lfo = context.createOscillator();
+  const lfoDepth = context.createGain();
+  lfo.frequency.setValueAtTime(0.075, now);
+  lfoDepth.gain.setValueAtTime(120, now);
+  lfo.connect(lfoDepth);
+  lfoDepth.connect(filter.frequency);
+  lfo.start(now);
+  void context.resume().catch(() => undefined);
+
+  return () => {
+    const stopAt = context.currentTime + 0.55;
+    master.gain.cancelScheduledValues(context.currentTime);
+    master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), context.currentTime);
+    master.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+    for (const oscillator of oscillators) oscillator.stop(stopAt + 0.05);
+    lfo.stop(stopAt + 0.05);
+    window.setTimeout(() => void context.close().catch(() => undefined), 700);
+  };
+}
+
 function playMechanismSound(kind: MechanismSound) {
   if (typeof window === "undefined" || typeof window.AudioContext === "undefined") return;
   try {
@@ -220,7 +268,7 @@ const assemblyChapters = [
   index: String(index + 1).padStart(2, "0"),
   duration: index < 4 ? "04:20" : index < 10 ? "06:10" : "03:45",
   video: ["/coordinatez-film-living.mp4", "/coordinatez-film-control.mp4", "/coordinatez-film-louvers.mp4"][index % 3],
-  poster: ["/coordinatez-film-living.png", "/coordinatez-film-control.png", "/coordinatez-film-louvers.png"][index % 3],
+  poster: ["/coordinatez-film-living.avif", "/coordinatez-film-control.avif", "/coordinatez-film-louvers.avif"][index % 3],
 }));
 
 const competitorRows = [
@@ -237,20 +285,20 @@ const competitorRows = [
 ];
 
 const lifestyleScenes = [
-  { title: "Infinity-edge mornings", location: "Coastal retreat", image: "/coordinatez-lifestyle-pool.png" },
-  { title: "The family table", location: "Garden dining", image: "/coordinatez-lifestyle-family.png" },
-  { title: "Blue-hour firelight", location: "Desert terrace", image: "/coordinatez-lifestyle-desert.png" },
-  { title: "A room for rainy days", location: "Forest hillside", image: "/coordinatez-lifestyle-rain.png" },
-  { title: "Long evenings outside", location: "Entertaining", image: "/coordinatez-film-living.png" },
-  { title: "Control in one hand", location: "Connected living", image: "/coordinatez-film-control.png" },
-  { title: "Light shaped precisely", location: "Daylight study", image: "/coordinatez-film-louvers.png" },
+  { title: "Infinity-edge mornings", location: "Coastal retreat", image: "/coordinatez-lifestyle-pool.avif" },
+  { title: "The family table", location: "Garden dining", image: "/coordinatez-lifestyle-family.avif" },
+  { title: "Blue-hour firelight", location: "Desert terrace", image: "/coordinatez-lifestyle-desert.avif" },
+  { title: "A room for rainy days", location: "Forest hillside", image: "/coordinatez-lifestyle-rain.avif" },
+  { title: "Long evenings outside", location: "Entertaining", image: "/coordinatez-film-living.avif" },
+  { title: "Control in one hand", location: "Connected living", image: "/coordinatez-film-control.avif" },
+  { title: "Light shaped precisely", location: "Daylight study", image: "/coordinatez-film-louvers.avif" },
 ];
 
 const showroomScenes = [
-  { city: "Austin", note: "Outdoor systems studio", image: "/coordinatez-lifestyle-family.png" },
-  { city: "Palm Springs", note: "Desert performance gallery", image: "/coordinatez-lifestyle-desert.png" },
-  { city: "Seattle", note: "All-weather experience", image: "/coordinatez-lifestyle-rain.png" },
-  { city: "San Diego", note: "Coastal living showroom", image: "/coordinatez-lifestyle-pool.png" },
+  { city: "Austin", note: "Outdoor systems studio", image: "/coordinatez-lifestyle-family.avif" },
+  { city: "Palm Springs", note: "Desert performance gallery", image: "/coordinatez-lifestyle-desert.avif" },
+  { city: "Seattle", note: "All-weather experience", image: "/coordinatez-lifestyle-rain.avif" },
+  { city: "San Diego", note: "Coastal living showroom", image: "/coordinatez-lifestyle-pool.avif" },
 ];
 
 function money(value: number) {
@@ -690,7 +738,7 @@ function RealPergolaViewer({
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
-        antialias: true,
+        antialias: window.innerWidth > 720 && (window.devicePixelRatio || 1) <= 1.5,
         alpha: false,
         powerPreference: "high-performance",
       });
@@ -759,10 +807,14 @@ function RealPergolaViewer({
       : "/";
     const panoramaTextures: Record<SceneTheme, THREE.Texture | null> = { garden: null, desert: null };
     const panoramaEnvironments: Record<SceneTheme, THREE.Texture | null> = { garden: null, desert: null };
+    const panoramaLoading: Record<SceneTheme, boolean> = { garden: false, desert: false };
     let panoramaLoaded = false;
     let disposed = false;
     const textureLoader = new THREE.TextureLoader();
-    const loadPanorama = (sceneTheme: SceneTheme, filename: string) => {
+    const loadPanorama = (sceneTheme: SceneTheme) => {
+      if (panoramaTextures[sceneTheme] || panoramaLoading[sceneTheme]) return;
+      panoramaLoading[sceneTheme] = true;
+      const filename = sceneTheme === "desert" ? "coordinatez-desert-panorama.avif" : "coordinatez-patio-panorama-v2.avif";
       textureLoader.load(
         `${panoramaBase}${filename}`,
         (texture) => {
@@ -775,6 +827,7 @@ function RealPergolaViewer({
           texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
           panoramaTextures[sceneTheme] = texture;
           panoramaEnvironments[sceneTheme] = pmremGenerator.fromEquirectangular(texture).texture;
+          panoramaLoading[sceneTheme] = false;
           if (liveStateRef.current.yardVisible && liveStateRef.current.theme === sceneTheme) {
             scene.background = texture;
             scene.environment = panoramaEnvironments[sceneTheme];
@@ -784,12 +837,12 @@ function RealPergolaViewer({
         },
         undefined,
         () => {
+          panoramaLoading[sceneTheme] = false;
           panoramaLoaded = true;
         },
       );
     };
-    loadPanorama("garden", "coordinatez-patio-panorama-v2.png");
-    loadPanorama("desert", "coordinatez-desert-panorama.png");
+    loadPanorama(liveStateRef.current.theme);
 
     const woodCanvas = document.createElement("canvas");
     woodCanvas.width = 1024;
@@ -1055,7 +1108,7 @@ function RealPergolaViewer({
       return mesh;
     };
 
-    const deck = new THREE.Mesh(new THREE.CircleGeometry(52, 128), patioMaterial);
+    const deck: THREE.Mesh<THREE.BufferGeometry, THREE.Material> = new THREE.Mesh(new THREE.CircleGeometry(52, 128), patioMaterial);
     deck.rotation.x = -Math.PI / 2;
     deck.position.y = -0.018;
     deck.receiveShadow = true;
@@ -1378,7 +1431,8 @@ function RealPergolaViewer({
     const sun = new THREE.DirectionalLight("#ffd6a0", 3.7);
     sun.position.set(13, 10, -9);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    const shadowResolution = window.innerWidth < 820 ? 1024 : 1536;
+    sun.shadow.mapSize.set(shadowResolution, shadowResolution);
     sun.shadow.camera.left = -11;
     sun.shadow.camera.right = 11;
     sun.shadow.camera.top = 11;
@@ -1411,7 +1465,8 @@ function RealPergolaViewer({
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();
       if (!bounds.width || !bounds.height) return;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+      const pixelRatioLimit = window.innerWidth < 820 ? 1.15 : 1.35;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelRatioLimit));
       renderer.setSize(bounds.width, bounds.height, false);
       camera.aspect = bounds.width / bounds.height;
       camera.updateProjectionMatrix();
@@ -1423,10 +1478,19 @@ function RealPergolaViewer({
     let hasRendered = false;
     let previousFrame = performance.now();
     let animationFrame = 0;
+    let idleTimer = 0;
+    let canvasVisible = true;
+    const visibilityObserver = new IntersectionObserver(([entry]) => { canvasVisible = entry.isIntersecting; }, { rootMargin: "180px 0px", threshold: 0.01 });
+    visibilityObserver.observe(canvas);
     const render = (now = performance.now()) => {
+      if (!canvasVisible || document.hidden) {
+        idleTimer = window.setTimeout(() => { animationFrame = window.requestAnimationFrame(render); }, 240);
+        return;
+      }
       const delta = Math.min((now - previousFrame) / 1000, 0.05);
       previousFrame = now;
       const state = liveStateRef.current;
+      if (state.yardVisible) loadPanorama(state.theme);
       furniture.visible = state.furnished;
       const targetColor = new THREE.Color(state.finish);
       aluminum.color.lerp(targetColor, 0.09);
@@ -1487,6 +1551,8 @@ function RealPergolaViewer({
     return () => {
       disposed = true;
       window.cancelAnimationFrame(animationFrame);
+      window.clearTimeout(idleTimer);
+      visibilityObserver.disconnect();
       resizeObserver.disconnect();
       controls.removeEventListener("start", stopAutoRotate);
       controls.dispose();
@@ -1656,7 +1722,7 @@ function PhotoPlanner({
   onClose: () => void;
   onProject: () => void;
 }) {
-  const [photo, setPhoto] = useState("/coordinatez-lifestyle-family.png");
+  const [photo, setPhoto] = useState("/coordinatez-lifestyle-family.avif");
   const [photoName, setPhotoName] = useState("Coordinatez garden study");
   const [scale, setScale] = useState(68);
   const [x, setX] = useState(50);
@@ -1863,27 +1929,62 @@ function DesignComparison({
 function ProductFilmShowcase({ onExplore }: { onExplore: () => void }) {
   const [activeFilm, setActiveFilm] = useState(0);
   const [filmPlaying, setFilmPlaying] = useState(true);
+  const [sectionVisible, setSectionVisible] = useState(false);
+  const [narrationEnabled, setNarrationEnabled] = useState(false);
+  const [musicEnabled, setMusicEnabled] = useState(false);
   const filmRef = useRef<HTMLVideoElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const observer = new IntersectionObserver(([entry]) => setSectionVisible(entry.isIntersecting), { rootMargin: "180px 0px", threshold: 0.08 });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const film = filmRef.current;
     if (!film) return;
-    if (filmPlaying) void film.play().catch(() => setFilmPlaying(false));
+    if (filmPlaying && sectionVisible) void film.play().catch(() => setFilmPlaying(false));
     else film.pause();
-  }, [activeFilm, filmPlaying]);
+  }, [activeFilm, filmPlaying, sectionVisible]);
+
+  useEffect(() => {
+    if (!narrationEnabled || !filmPlaying || !sectionVisible || !("speechSynthesis" in window)) return;
+    const narration = new SpeechSynthesisUtterance(prototypeFilms[activeFilm].narration);
+    narration.lang = "en-US";
+    narration.rate = 0.93;
+    narration.pitch = 0.92;
+    narration.volume = 0.88;
+    const voices = window.speechSynthesis.getVoices();
+    narration.voice = voices.find((voice) => voice.lang.startsWith("en") && /Samantha|Daniel|Karen|Moira/i.test(voice.name)) ?? voices.find((voice) => voice.lang.startsWith("en")) ?? null;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(narration);
+    return () => window.speechSynthesis.cancel();
+  }, [activeFilm, filmPlaying, narrationEnabled, sectionVisible]);
+
+  useEffect(() => {
+    if (!musicEnabled || !filmPlaying || !sectionVisible) return;
+    return startAmbientScore(activeFilm);
+  }, [activeFilm, filmPlaying, musicEnabled, sectionVisible]);
 
   return (
-    <section className="prototype-showcase product-film-section" id="films">
+    <section ref={sectionRef} className="prototype-showcase product-film-section" id="films">
       <div className="prototype-heading reveal">
         <div><span>Next-level outdoor performance</span><h2>A moving product story.</h2></div>
         <p>Three short films show how AXIS changes a space through light, weather control and the moments that happen underneath.</p>
       </div>
       <div className="prototype-stage reveal">
-        <video key={prototypeFilms[activeFilm].id} ref={filmRef} className="prototype-video" autoPlay muted loop playsInline preload="metadata" poster={prototypeFilms[activeFilm].poster} aria-label={`${prototypeFilms[activeFilm].label} concept film`}>
+        <video key={prototypeFilms[activeFilm].id} ref={filmRef} className="prototype-video" muted loop playsInline preload="none" poster={prototypeFilms[activeFilm].poster} aria-label={`${prototypeFilms[activeFilm].label} concept film`}>
           <source src={prototypeFilms[activeFilm].video} type="video/mp4" />
         </video>
         <div className="prototype-shade" aria-hidden="true" />
         <div className="prototype-stage-topline"><span>COORDINATEZ PRODUCT FILM</span><i>0{activeFilm + 1} / 03</i></div>
+        <div className="prototype-audio-controls" aria-label="Product film audio">
+          <button className={narrationEnabled ? "is-active" : ""} onClick={() => setNarrationEnabled((enabled) => !enabled)} aria-label={narrationEnabled ? "Turn narration off" : "Add narration"} aria-pressed={narrationEnabled}><i>VO</i><span>{narrationEnabled ? "Narration on" : "Add narration"}</span></button>
+          <button className={musicEnabled ? "is-active" : ""} onClick={() => setMusicEnabled((enabled) => !enabled)} aria-label={musicEnabled ? "Turn music off" : "Add music"} aria-pressed={musicEnabled}><i>♫</i><span>{musicEnabled ? "Music on" : "Add music"}</span></button>
+        </div>
         <div className="prototype-story" key={`product-film-${activeFilm}`}>
           <span>{prototypeFilms[activeFilm].eyebrow}</span>
           <h2>{prototypeFilms[activeFilm].title}</h2>
@@ -2012,6 +2113,7 @@ export function ProductStudio() {
   const [submitState, setSubmitState] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [reference, setReference] = useState("");
+  const [accountName, setAccountName] = useState("");
 
   const total = useMemo(
     () => sizes[selectedSize].price + (heater ? 798 : 0) + selectedWallCount(wallSides) * 1190,
@@ -2096,6 +2198,14 @@ export function ProductStudio() {
     });
   }, []);
 
+  useEffect(() => {
+    if (window.location.hostname.endsWith("github.io")) return;
+    void fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ user?: { name?: string } | null }> : null)
+      .then((result) => setAccountName(result?.user?.name?.split(/\s+/)[0] ?? ""))
+      .catch(() => undefined);
+  }, []);
+
   const goToConfigStep = (step: number) => {
     const next = Math.max(0, Math.min(configurationSteps.length - 1, step));
     setConfigStep(next);
@@ -2129,12 +2239,34 @@ export function ProductStudio() {
     playFeedback(mode === "rain" ? "wall" : "louvers");
   };
 
-  const saveCurrentDesign = () => {
+  const saveCurrentDesign = async () => {
     const saved = { ...currentDesign, id: `axis-${Date.now()}`, createdAt: new Date().toISOString() };
     const next = [saved, ...savedDesigns].slice(0, 6);
     setSavedDesigns(next);
     window.localStorage.setItem("coordinatez-saved-designs", JSON.stringify(next));
-    setToolMessage("Design saved on this device. It is ready to compare or reopen.");
+    if (window.location.hostname.endsWith("github.io")) {
+      setToolMessage("Design saved on this device. Sign in on the live demo to add cloud backup.");
+      return;
+    }
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: saved.name, configuration: saved }),
+      });
+      if (response.ok) {
+        setToolMessage("Design saved to your Coordinatez account and this device.");
+        return;
+      }
+      if (response.status === 401) {
+        setToolMessage("Design saved on this device. Sign in to sync it across devices.");
+        return;
+      }
+      throw new Error("Cloud save unavailable");
+    } catch {
+      setToolMessage("Design saved on this device. Cloud sync will be available when the account service reconnects.");
+    }
   };
 
   const loadSavedDesign = (design: SavedDesign) => {
@@ -2342,6 +2474,7 @@ export function ProductStudio() {
           <a href="#showrooms" onClick={() => setMenuOpen(false)}>Showrooms</a>
         </nav>
         <div className="header-actions">
+          <a className="account-link" href={`${PUBLIC_DEMO_ORIGIN}/account`}>{accountName || "Account"}<i>↗</i></a>
           <button className="text-button" onClick={() => document.querySelector("#contact")?.scrollIntoView({ behavior: "smooth" })}>Book a studio call</button>
           <button className="round-button" aria-label="Open project bag" onClick={addToBrief}>0</button>
           <button className="menu-button" aria-label="Toggle menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
@@ -2476,7 +2609,7 @@ export function ProductStudio() {
               <p><i /> Your configuration is attached automatically.</p>
               <div className="project-tool-grid" aria-label="Project planning tools">
                 <button onClick={() => setPlannerOpen(true)}><i>▧</i><span><b>Photo planner</b><small>Place AXIS into a patio photo</small></span></button>
-                <button onClick={saveCurrentDesign}><i>＋</i><span><b>Save design</b><small>{savedDesigns.length} saved on this device</small></span></button>
+                <button onClick={() => void saveCurrentDesign()}><i>＋</i><span><b>Save design</b><small>{accountName ? `${savedDesigns.length} local · cloud active` : `${savedDesigns.length} local · sign in for cloud`}</small></span></button>
                 <button onClick={() => void shareCurrentDesign()}><i>↗</i><span><b>Share link</b><small>Preserves every option</small></span></button>
                 <button onClick={() => setCompareDesignsOpen(true)}><i>Ⅱ</i><span><b>Compare designs</b><small>Current versus saved</small></span></button>
                 <button onClick={() => void exportProjectPdf()} disabled={pdfState === "working"}><i>PDF</i><span><b>{pdfState === "working" ? "Building PDF…" : "Project PDF"}</b><small>Specs, estimate and AR QR</small></span></button>
@@ -2533,17 +2666,17 @@ export function ProductStudio() {
         </section>
 
         <section className="feature-story is-light" id="power">
-          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-film-control.png)" }}><span>01 / CONNECTED CONTROL</span></div>
+          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-film-control.avif)" }}><span>01 / CONNECTED CONTROL</span></div>
           <div className="feature-story-copy reveal"><span>Integrated outdoor power</span><h2>One system. App, remote and power at every post.</h2><p>Prewired beams keep the installation composed. Control the roof and lighting from a handheld remote or mobile experience, with weather-protected outlets placed where the room needs them.</p><ul><li>IP-rated post outlets</li><li>Integrated perimeter LEDs</li><li>App + remote louver control</li></ul></div>
         </section>
 
         <section className="feature-story is-dark is-reversed">
-          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-lifestyle-rain.png)" }}><span>02 / ALL-SEASON SHELTER</span></div>
+          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-lifestyle-rain.avif)" }}><span>02 / ALL-SEASON SHELTER</span></div>
           <div className="feature-story-copy reveal"><span>Stronger and tougher</span><h2>Rain moves out. Comfort stays in.</h2><p>Interlocking louvers close into a continuous roof while concealed gutters carry water through separated drainage channels inside the posts.</p><ul><li>6063-T5 aluminum construction</li><li>Water and electrical separation</li><li>60% faster drainage concept</li></ul></div>
         </section>
 
         <section className="feature-story is-light">
-          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-lifestyle-family.png)" }}><span>03 / FLEXIBLE ROOM</span></div>
+          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-lifestyle-family.avif)" }}><span>03 / FLEXIBLE ROOM</span></div>
           <div className="feature-story-copy reveal"><span>Transform with motorized walls</span><h2>Privacy and protection, side by side.</h2><p>Choose each elevation independently in the live configurator. Screens lower only where needed, preserving the open-air character of the room.</p><ul><li>Front, rear, left or right</li><li>Independent motorized movement</li><li>Furniture-scale spatial preview</li></ul></div>
         </section>
 
@@ -2773,8 +2906,9 @@ const prototypeFilms = [
     title: "Made for the hours you keep.",
     copy: "A long L-sectional, warm perimeter light and open-air cooking turn the pergola into a room that stays inviting after sunset.",
     stat: "One continuous outdoor room",
+    narration: "AXIS turns the patio into one continuous outdoor room. Open the louvers for the last light of day, then bring up the perimeter glow as the evening begins.",
     video: "/coordinatez-film-living.mp4",
-    poster: "/coordinatez-film-living.png",
+    poster: "/coordinatez-film-living.avif",
   },
   {
     id: "control",
@@ -2784,8 +2918,9 @@ const prototypeFilms = [
     title: "The weather, on your terms.",
     copy: "Move the louvers, lower any privacy wall and tune the evening light from a single, deliberately simple control experience.",
     stat: "Remote + mobile control",
+    narration: "Connected control keeps every movement simple. Adjust the louvers, privacy walls, and evening lighting from one deliberate interface.",
     video: "/coordinatez-film-control.mp4",
-    poster: "/coordinatez-film-control.png",
+    poster: "/coordinatez-film-control.avif",
   },
   {
     id: "louvers",
@@ -2795,8 +2930,9 @@ const prototypeFilms = [
     title: "Shade when you need it. Sky when you want it.",
     copy: "Precision louvers rotate through the sun path, opening the room to air and sealing into a clean shelter when conditions change.",
     stat: "0–120° adjustable louvers",
+    narration: "Precision louvers rotate through one hundred and twenty degrees. Shape the shade, welcome open sky, or close the roof when the weather changes.",
     video: "/coordinatez-film-louvers.mp4",
-    poster: "/coordinatez-film-louvers.png",
+    poster: "/coordinatez-film-louvers.avif",
   },
 ];
 

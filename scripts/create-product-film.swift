@@ -29,8 +29,10 @@ guard let cgImage = sourceImage.cgImage(forProposedRect: &sourceRect, context: n
 }
 
 let outputURL = URL(fileURLWithPath: outputPath)
+let rawOutputURL = outputURL.deletingPathExtension().appendingPathExtension("raw.mp4")
 try? FileManager.default.removeItem(at: outputURL)
-let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+try? FileManager.default.removeItem(at: rawOutputURL)
+let writer = try AVAssetWriter(outputURL: rawOutputURL, fileType: .mp4)
 let input = AVAssetWriterInput(
   mediaType: .video,
   outputSettings: [
@@ -159,6 +161,24 @@ semaphore.wait()
 guard writer.status == .completed else {
   fputs("Video encoding failed: \(writer.error?.localizedDescription ?? "unknown error")\n", stderr)
   exit(11)
+}
+
+let rawAsset = AVURLAsset(url: rawOutputURL)
+guard let exporter = AVAssetExportSession(asset: rawAsset, presetName: AVAssetExportPresetPassthrough) else {
+  fputs("Unable to prepare web-optimized video.\n", stderr)
+  exit(12)
+}
+exporter.outputURL = outputURL
+exporter.outputFileType = .mp4
+exporter.shouldOptimizeForNetworkUse = true
+let exportSemaphore = DispatchSemaphore(value: 0)
+exporter.exportAsynchronously { exportSemaphore.signal() }
+exportSemaphore.wait()
+try? FileManager.default.removeItem(at: rawOutputURL)
+
+guard exporter.status == .completed else {
+  fputs("Web video optimization failed: \(exporter.error?.localizedDescription ?? "unknown error")\n", stderr)
+  exit(13)
 }
 
 print("Created \(outputPath)")
