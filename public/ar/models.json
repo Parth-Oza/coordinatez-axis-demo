@@ -1,0 +1,98 @@
+[
+  {
+    "size": "10x10",
+    "sizeLabel": "10′ × 10′",
+    "finish": "carbon",
+    "finishLabel": "Carbon",
+    "glb": "/ar/coordinatez-axis-10x10-carbon.glb",
+    "usdz": "/ar/coordinatez-axis-10x10-carbon.usdz"
+  },
+  {
+    "size": "10x10",
+    "sizeLabel": "10′ × 10′",
+    "finish": "cloud",
+    "finishLabel": "Cloud",
+    "glb": "/ar/coordinatez-axis-10x10-cloud.glb",
+    "usdz": "/ar/coordinatez-axis-10x10-cloud.usdz"
+  },
+  {
+    "size": "10x10",
+    "sizeLabel": "10′ × 10′",
+    "finish": "sand",
+    "finishLabel": "Sand",
+    "glb": "/ar/coordinatez-axis-10x10-sand.glb",
+    "usdz": "/ar/coordinatez-axis-10x10-sand.usdz"
+  },
+  {
+    "size": "10x13",
+    "sizeLabel": "10′ × 13′",
+    "finish": "carbon",
+    "finishLabel": "Carbon",
+    "glb": "/ar/coordinatez-axis-10x13-carbon.glb",
+    "usdz": "/ar/coordinatez-axis-10x13-carbon.usdz"
+  },
+  {
+    "size": "10x13",
+    "sizeLabel": "10′ × 13′",
+    "finish": "cloud",
+    "finishLabel": "Cloud",
+    "glb": "/ar/coordinatez-axis-10x13-cloud.glb",
+    "usdz": "/ar/coordinatez-axis-10x13-cloud.usdz"
+  },
+  {
+    "size": "10x13",
+    "sizeLabel": "10′ × 13′",
+    "finish": "sand",
+    "finishLabel": "Sand",
+    "glb": "/ar/coordinatez-axis-10x13-sand.glb",
+    "usdz": "/ar/coordinatez-axis-10x13-sand.usdz"
+  },
+  {
+    "size": "13x13",
+    "sizeLabel": "13′ × 13′",
+    "finish": "carbon",
+    "finishLabel": "Carbon",
+    "glb": "/ar/coordinatez-axis-13x13-carbon.glb",
+    "usdz": "/ar/coordinatez-axis-13x13-carbon.usdz"
+  },
+  {
+    "size": "13x13",
+    "sizeLabel": "13′ × 13′",
+    "finish": "cloud",
+    "finishLabel": "Cloud",
+    "glb": "/ar/coordinatez-axis-13x13-cloud.glb",
+    "usdz": "/ar/coordinatez-axis-13x13-cloud.usdz"
+  },
+  {
+    "size": "13x13",
+    "sizeLabel": "13′ × 13′",
+    "finish": "sand",
+    "finishLabel": "Sand",
+    "glb": "/ar/coordinatez-axis-13x13-sand.glb",
+    "usdz": "/ar/coordinatez-axis-13x13-sand.usdz"
+  },
+  {
+    "size": "13x20",
+    "sizeLabel": "13′ × 20′",
+    "finish": "carbon",
+    "finishLabel": "Carbon",
+    "glb": "/ar/coordinatez-axis-13x20-carbon.glb",
+    "usdz": "/ar/coordinatez-axis-13x20-carbon.usdz"
+  },
+  {
+    "size": "13x20",
+    "sizeLabel": "13′ × 20′",
+    "finish": "cloud",
+    "finishLabel": "Cloud",
+    "glb": "/ar/coordinatez-axis-13x20-cloud.glb",
+    "usdz": "/ar/coordinatez-axis-13x20-cloud.usdz"
+  },
+  {
+    "size": "13x20",
+    "sizeLabel": "13′ × 20′",
+    "finish": "sand",
+    "finishLabel": "Sand",
+    "glb": "/ar/coordinatez-axis-13x20-sand.glb",
+    "usdz": "/ar/coordinatez-axis-13x20-sand.usdz"
+  }
+]

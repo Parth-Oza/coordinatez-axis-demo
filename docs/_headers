@@ -1,0 +1,10 @@
+/ar/*.glb
+  Content-Type: model/gltf-binary
+  X-Content-Type-Options: nosniff
+
+/ar/*.usdz
+  Content-Type: model/vnd.usdz+zip
+  X-Content-Type-Options: nosniff
+
+/ar/*.png
+  Cache-Control: public, max-age=3600, must-revalidate

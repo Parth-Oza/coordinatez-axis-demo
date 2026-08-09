@@ -22,8 +22,6 @@ type WallSide = "front" | "rear" | "left" | "right";
 type WallSelections = Record<WallSide, boolean>;
 type SceneTheme = "garden" | "desert";
 type MechanismSound = "louvers" | "wall";
-type ARCapability = "checking" | "supported" | "camera";
-type ARStatus = "idle" | "starting" | "scanning" | "placed" | "camera" | "error";
 type BriefForm = {
   name: string;
   email: string;
@@ -634,48 +632,15 @@ function RealPergolaViewer({
   theme: SceneTheme;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cameraVideoRef = useRef<HTMLVideoElement>(null);
-  const cameraStreamRef = useRef<MediaStream | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const arRuntimeRef = useRef<{
-    renderer: THREE.WebGLRenderer;
-    scene: THREE.Scene;
-    controls: OrbitControls;
-    pergola: THREE.Group;
-    deck: THREE.Mesh;
-    reticle: THREE.Mesh;
-    realScale: THREE.Vector3;
-    placementQuaternion: THREE.Quaternion;
-    session: XRSession | null;
-    referenceSpace: XRReferenceSpace | null;
-    hitTestSource: XRHitTestSource | null;
-    placed: boolean;
-  } | null>(null);
-  const [arCapability, setArCapability] = useState<ARCapability>("checking");
-  const [arStatus, setArStatus] = useState<ARStatus>("idle");
-  const [arPreview, setArPreview] = useState(false);
-  const [arScale, setArScale] = useState(1);
-  const [arRotation, setArRotation] = useState(0);
-  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, wallSides, theme, arPreview, arScale, arRotation });
+  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, wallSides, theme });
   const [viewerReady, setViewerReady] = useState(false);
   const [webglFailed, setWebglFailed] = useState(false);
 
   useEffect(() => {
-    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, wallSides, theme, arPreview, arScale, arRotation };
-  }, [arPreview, arRotation, arScale, dusk, finish, louversOpen, theme, wallSides, yardVisible]);
-
-  useEffect(() => {
-    let active = true;
-    if (!navigator.xr?.isSessionSupported) {
-      queueMicrotask(() => active && setArCapability("camera"));
-      return () => { active = false; };
-    }
-    void navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
-      if (active) setArCapability(supported ? "supported" : "camera");
-    }).catch(() => active && setArCapability("camera"));
-    return () => { active = false; };
-  }, []);
+    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, wallSides, theme };
+  }, [dusk, finish, louversOpen, theme, wallSides, yardVisible]);
 
   const resetView = useCallback(() => {
     const camera = cameraRef.current;
@@ -688,111 +653,6 @@ function RealPergolaViewer({
     controls.update();
   }, [sizeIndex]);
 
-  const stopCameraPreview = useCallback(() => {
-    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
-    cameraStreamRef.current = null;
-    if (cameraVideoRef.current) cameraVideoRef.current.srcObject = null;
-    setArPreview(false);
-    setArStatus("idle");
-    setArScale(1);
-    setArRotation(0);
-  }, []);
-
-  const startCameraPreview = useCallback(async () => {
-    setArStatus("starting");
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera unavailable");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
-      cameraStreamRef.current = stream;
-      setArPreview(true);
-      setArStatus("camera");
-      window.setTimeout(() => {
-        const video = cameraVideoRef.current;
-        if (!video) return;
-        video.srcObject = stream;
-        void video.play().catch(() => undefined);
-      }, 0);
-    } catch {
-      setArStatus("error");
-    }
-  }, []);
-
-  const launchAR = useCallback(async () => {
-    const runtime = arRuntimeRef.current;
-    if (!runtime || arStatus === "starting") return;
-    if (arCapability !== "supported" || !navigator.xr) {
-      await startCameraPreview();
-      return;
-    }
-
-    setArStatus("starting");
-    try {
-      const session = await navigator.xr.requestSession("immersive-ar", {
-        requiredFeatures: ["hit-test"],
-        optionalFeatures: ["local-floor", "dom-overlay", "light-estimation"],
-        domOverlay: { root: document.body },
-      });
-      const referenceSpace = await session.requestReferenceSpace("local");
-      const viewerSpace = await session.requestReferenceSpace("viewer");
-      const hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-      runtime.session = session;
-      runtime.referenceSpace = referenceSpace;
-      runtime.hitTestSource = hitTestSource;
-      runtime.placed = false;
-      runtime.pergola.visible = false;
-      runtime.deck.visible = false;
-      runtime.controls.enabled = false;
-      runtime.scene.background = null;
-      await runtime.renderer.xr.setSession(session);
-      setArStatus("scanning");
-
-      session.addEventListener("select", () => {
-        if (!runtime.reticle.visible) return;
-        const position = new THREE.Vector3();
-        const scale = new THREE.Vector3();
-        runtime.reticle.matrix.decompose(position, runtime.placementQuaternion, scale);
-        runtime.pergola.position.copy(position);
-        runtime.pergola.quaternion.copy(runtime.placementQuaternion);
-        runtime.pergola.scale.copy(runtime.realScale);
-        runtime.pergola.visible = true;
-        runtime.placed = true;
-        setArStatus("placed");
-      });
-
-      session.addEventListener("end", () => {
-        runtime.hitTestSource?.cancel();
-        runtime.session = null;
-        runtime.referenceSpace = null;
-        runtime.hitTestSource = null;
-        runtime.placed = false;
-        runtime.reticle.visible = false;
-        runtime.pergola.visible = true;
-        runtime.pergola.position.set(0, 0.015, 0);
-        runtime.pergola.quaternion.identity();
-        runtime.pergola.scale.setScalar(1);
-        runtime.deck.visible = true;
-        runtime.controls.enabled = true;
-        setArStatus("idle");
-      }, { once: true });
-    } catch {
-      setArStatus("error");
-      await startCameraPreview();
-    }
-  }, [arCapability, arStatus, startCameraPreview]);
-
-  const endAR = useCallback(() => {
-    const session = arRuntimeRef.current?.session;
-    if (session) void session.end();
-    else stopCameraPreview();
-  }, [stopCameraPreview]);
-
-  useEffect(() => () => {
-    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
-  }, []);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -802,7 +662,7 @@ function RealPergolaViewer({
       renderer = new THREE.WebGLRenderer({
         canvas,
         antialias: true,
-        alpha: true,
+        alpha: false,
         powerPreference: "high-performance",
       });
     } catch {
@@ -815,7 +675,6 @@ function RealPergolaViewer({
     renderer.toneMappingExposure = 1.02;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.xr.enabled = true;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(39, 1, 0.1, 140);
@@ -1180,13 +1039,6 @@ function RealPergolaViewer({
       { width: 7.15, depth: 7.4, posts: 6 },
     ] as const;
     const footprint = footprintProfiles[sizeIndex] ?? footprintProfiles[0];
-    const realDimensions = [
-      { width: 3.048, depth: 3.048 },
-      { width: 3.048, depth: 3.962 },
-      { width: 3.962, depth: 3.962 },
-      { width: 3.962, depth: 6.096 },
-    ][sizeIndex] ?? { width: 3.048, depth: 3.048 };
-    const realScale = new THREE.Vector3(realDimensions.width / footprint.width, 2.49 / 3.3, realDimensions.depth / footprint.depth);
     const halfWidth = footprint.width / 2;
     const halfDepth = footprint.depth / 2;
     const innerWidth = footprint.width - 0.18;
@@ -1527,28 +1379,6 @@ function RealPergolaViewer({
       return light;
     });
 
-    const reticle = new THREE.Mesh(
-      new THREE.RingGeometry(0.16, 0.22, 36).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: "#c9ff61", side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
-    );
-    reticle.matrixAutoUpdate = false;
-    reticle.visible = false;
-    scene.add(reticle);
-    arRuntimeRef.current = {
-      renderer,
-      scene,
-      controls,
-      pergola,
-      deck,
-      reticle,
-      realScale,
-      placementQuaternion: new THREE.Quaternion(),
-      session: null,
-      referenceSpace: null,
-      hitTestSource: null,
-      placed: false,
-    };
-
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();
       if (!bounds.width || !bounds.height) return;
@@ -1563,50 +1393,11 @@ function RealPergolaViewer({
 
     let hasRendered = false;
     let previousFrame = performance.now();
-    const arYaw = new THREE.Quaternion();
-    const arUp = new THREE.Vector3(0, 1, 0);
-    const render = (now = performance.now(), xrFrame?: XRFrame) => {
+    let animationFrame = 0;
+    const render = (now = performance.now()) => {
       const delta = Math.min((now - previousFrame) / 1000, 0.05);
       previousFrame = now;
       const state = liveStateRef.current;
-      const runtime = arRuntimeRef.current;
-      const presentingAR = renderer.xr.isPresenting;
-      const augmentedView = presentingAR || state.arPreview;
-
-      if (presentingAR && xrFrame && runtime?.hitTestSource && runtime.referenceSpace) {
-        const results = xrFrame.getHitTestResults(runtime.hitTestSource);
-        const pose = results[0]?.getPose(runtime.referenceSpace);
-        if (pose) {
-          runtime.reticle.visible = true;
-          runtime.reticle.matrix.fromArray(pose.transform.matrix);
-        } else {
-          runtime.reticle.visible = false;
-        }
-      } else if (runtime) {
-        runtime.reticle.visible = false;
-      }
-
-      if (runtime) {
-        if (presentingAR && runtime.placed) {
-          runtime.pergola.scale.set(
-            runtime.realScale.x * state.arScale,
-            runtime.realScale.y * state.arScale,
-            runtime.realScale.z * state.arScale,
-          );
-          arYaw.setFromAxisAngle(arUp, state.arRotation);
-          runtime.pergola.quaternion.copy(runtime.placementQuaternion).multiply(arYaw);
-        } else if (state.arPreview) {
-          runtime.pergola.visible = true;
-          runtime.pergola.position.set(0, 0.015, 0);
-          runtime.pergola.scale.setScalar(state.arScale);
-          runtime.pergola.quaternion.setFromAxisAngle(arUp, state.arRotation);
-        } else if (!presentingAR) {
-          runtime.pergola.visible = true;
-          runtime.pergola.position.set(0, 0.015, 0);
-          runtime.pergola.scale.setScalar(1);
-          runtime.pergola.quaternion.identity();
-        }
-      }
       const targetColor = new THREE.Color(state.finish);
       aluminum.color.lerp(targetColor, 0.09);
       louverMaterial.color.lerp(targetColor.clone().offsetHSL(0, 0, -0.025), 0.09);
@@ -1633,13 +1424,11 @@ function RealPergolaViewer({
       const panoramaRotation = state.theme === "desert" ? 0.08 : 3.2;
       scene.backgroundRotation.y = THREE.MathUtils.lerp(scene.backgroundRotation.y, panoramaRotation, 0.08);
       scene.environmentRotation.y = THREE.MathUtils.lerp(scene.environmentRotation.y, panoramaRotation, 0.08);
-      scene.background = augmentedView ? null : state.yardVisible && activePanorama ? activePanorama : studioSky;
+      scene.background = state.yardVisible && activePanorama ? activePanorama : studioSky;
       scene.environment = state.yardVisible && activeEnvironment ? activeEnvironment : physicalEnvironment;
       scene.backgroundIntensity = THREE.MathUtils.lerp(scene.backgroundIntensity, state.dusk ? 0.38 : 0.94, 0.06);
       scene.environmentIntensity = THREE.MathUtils.lerp(scene.environmentIntensity, state.dusk ? 0.34 : 0.86, 0.06);
-      deck.visible = !augmentedView;
       deck.material = state.yardVisible ? patioMaterial : deckMaterial;
-      renderer.setClearAlpha(augmentedView ? 0 : 1);
       patioMaterial.color.lerp(new THREE.Color(state.theme === "desert" ? "#fff0d7" : "#fff9ed"), 0.05);
       sun.color.lerp(new THREE.Color(state.theme === "desert" ? "#ffc982" : "#ffd6a0"), 0.05);
       hemisphere.color.lerp(new THREE.Color(state.theme === "desert" ? "#fff0d4" : "#fff5df"), 0.05);
@@ -1655,26 +1444,24 @@ function RealPergolaViewer({
       screenMaterial.opacity = THREE.MathUtils.lerp(screenMaterial.opacity, state.dusk ? 0.7 : 0.62, 0.08);
       for (const light of pergolaLights) light.intensity = THREE.MathUtils.lerp(light.intensity, duskMix * 13, 0.09);
 
-      controls.enabled = !presentingAR;
       controls.update(delta);
       renderer.render(scene, camera);
       if (!hasRendered && panoramaLoaded) {
         hasRendered = true;
         window.setTimeout(() => setViewerReady(true), 260);
       }
+      animationFrame = window.requestAnimationFrame(render);
     };
-    renderer.setAnimationLoop(render);
+    render();
 
     return () => {
       disposed = true;
-      renderer.setAnimationLoop(null);
-      if (arRuntimeRef.current?.session) void arRuntimeRef.current.session.end();
+      window.cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
       controls.removeEventListener("start", stopAutoRotate);
       controls.dispose();
       cameraRef.current = null;
       controlsRef.current = null;
-      arRuntimeRef.current = null;
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         object.geometry.dispose();
@@ -1704,9 +1491,15 @@ function RealPergolaViewer({
     return <PergolaViewer finish={finish} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} />;
   }
 
+  const sizeSlug = ["10x10", "10x13", "13x13", "13x20"][sizeIndex] ?? "10x10";
+  const finishSlug = finishes.find((option) => option.value.toLowerCase() === finish.toLowerCase())?.name.toLowerCase() ?? "carbon";
+  const arOrigin = typeof window !== "undefined" && window.location.pathname.startsWith("/coordinatez-axis-demo")
+    ? "https://coordinatez-axis-demo.ozaparth055.workers.dev"
+    : "";
+  const arHref = `${arOrigin}/ar?size=${sizeSlug}&finish=${finishSlug}`;
+
   return (
-    <div className={`viewer-shell viewer-shell-real ${arPreview ? "is-camera-ar" : ""}`}>
-      {arPreview && <video ref={cameraVideoRef} className="ar-camera-feed" autoPlay muted playsInline aria-label="Live camera view of your outdoor space" />}
+    <div className="viewer-shell viewer-shell-real">
       <div className={`viewer-loader ${viewerReady ? "is-ready" : ""}`} aria-hidden="true">
         <span>COORDINATEZ / PHYSICAL VIEW</span><i />
       </div>
@@ -1719,29 +1512,11 @@ function RealPergolaViewer({
         className="product-canvas"
         aria-label="Interactive three-dimensional model of the Coordinatez Axis pergola. Drag to orbit and scroll to zoom."
       />
-      {!arPreview && arStatus !== "scanning" && arStatus !== "placed" && (
-        <button className="ar-launch-button" onClick={() => void launchAR()} disabled={arStatus === "starting"}>
-          <i aria-hidden="true">AR</i>
-          <span><b>{arStatus === "starting" ? "Starting camera…" : arStatus === "error" ? "Allow camera & retry" : "View in your space"}</b><small>{arCapability === "supported" ? "True-scale placement" : arCapability === "checking" ? "Checking this device" : "Live camera preview"}</small></span>
-          <em>↗</em>
-        </button>
-      )}
-      {arPreview && (
-        <div className="ar-camera-panel" role="dialog" aria-label="Camera placement preview">
-          <div><span>CAMERA PREVIEW</span><b>Frame your patio, then size and rotate AXIS.</b></div>
-          <label><span>Scale</span><input type="range" min="0.62" max="1.35" step="0.01" value={arScale} onChange={(event) => setArScale(Number(event.target.value))} /></label>
-          <label><span>Rotate</span><input type="range" min={-Math.PI} max={Math.PI} step="0.02" value={arRotation} onChange={(event) => setArRotation(Number(event.target.value))} /></label>
-          <button onClick={endAR}>Exit camera preview ×</button>
-        </div>
-      )}
-      {(arStatus === "scanning" || arStatus === "placed") && (
-        <div className="ar-session-panel" role="status">
-          <i aria-hidden="true" />
-          <div><small>COORDINATEZ AR · TRUE SCALE</small><b>{arStatus === "scanning" ? "Move slowly to find the patio floor, then tap to place." : "AXIS is placed. Tap another point to reposition."}</b></div>
-          {arStatus === "placed" && <label><span>Fine scale</span><input type="range" min="0.8" max="1.2" step="0.01" value={arScale} onChange={(event) => setArScale(Number(event.target.value))} /></label>}
-          <button onClick={endAR}>Exit AR ×</button>
-        </div>
-      )}
+      <a className="ar-launch-button" href={arHref}>
+        <i aria-hidden="true">AR</i>
+        <span><b>View in your space</b><small>iPhone + Android native AR</small></span>
+        <em>↗</em>
+      </a>
       <div className="viewer-badge">Photo-matched 360° environment</div>
     </div>
   );

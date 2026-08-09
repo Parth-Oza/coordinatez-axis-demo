@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(pathname = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", {
+    new Request(`http://localhost${pathname}`, {
       headers: { accept: "text/html" },
     }),
     {
@@ -48,12 +48,14 @@ test("server-renders the complete Coordinatez AXIS product experience", async ()
 });
 
 test("ships the comparison imagery and full-stack interaction hooks", async () => {
-  const [page, css, layout, subscriberRoute, migration] = await Promise.all([
+  const [page, arPage, css, layout, subscriberRoute, migration, arManifestText] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/ar/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/subscribers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0001_graceful_madame_masque.sql", import.meta.url), "utf8"),
+    readFile(new URL("../public/ar/models.json", import.meta.url), "utf8"),
   ]);
 
   await access(new URL("../public/models-triptych.jpg", import.meta.url));
@@ -68,6 +70,9 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   await access(new URL("../public/coordinatez-lifestyle-family.png", import.meta.url));
   await access(new URL("../public/coordinatez-lifestyle-desert.png", import.meta.url));
   await access(new URL("../public/coordinatez-lifestyle-rain.png", import.meta.url));
+  await access(new URL("../public/ar/coordinatez-axis-10x10-carbon.glb", import.meta.url));
+  await access(new URL("../public/ar/coordinatez-axis-10x10-carbon.usdz", import.meta.url));
+  await access(new URL("../public/ar/coordinatez-ar-qr-13x20-sand.png", import.meta.url));
   assert.match(page, /<RealPergolaViewer/);
   assert.match(page, /THREE\.WebGLRenderer/);
   assert.match(page, /OrbitControls/);
@@ -107,11 +112,18 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /showroomScenes/);
   assert.match(page, /InstallationChecker/);
   assert.match(page, /ProductStudio/);
-  assert.match(page, /requestSession\("immersive-ar"/);
-  assert.match(page, /requestHitTestSource/);
-  assert.match(page, /getUserMedia/);
-  assert.match(page, /realScale/);
+  assert.doesNotMatch(page, /requestSession\("immersive-ar"/);
+  assert.doesNotMatch(page, /requestHitTestSource/);
+  assert.doesNotMatch(page, /getUserMedia/);
   assert.match(page, /ar-launch-button/);
+  assert.match(page, /iPhone \+ Android native AR/);
+  assert.match(arPage, /@google\/model-viewer/);
+  assert.match(arPage, /webxr scene-viewer quick-look/);
+  assert.match(arPage, /"ios-src"/);
+  assert.match(arPage, /activateAR/);
+  assert.match(arPage, /"ar-scale": "fixed"/);
+  assert.match(arPage, /coordinatez-ar-qr-/);
+  assert.equal(JSON.parse(arManifestText).length, 12);
   assert.match(css, /models-triptych\.jpg/);
   assert.match(css, /url\("\/hero-triptych-v2\.jpg"\)/);
   assert.match(css, /hero-louver/);
@@ -121,4 +133,14 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(layout, /AXIS POWER\+ Gen 2/);
   assert.match(subscriberRoute, /newsletterSubscribers/);
   assert.match(migration, /CREATE TABLE `newsletter_subscribers`/);
+});
+
+test("server-renders the dedicated native AR handoff", async () => {
+  const response = await render("/ar?size=13x20&finish=sand");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /PLACE BEFORE YOU BUILD/);
+  assert.match(html, /Place in your space/);
+  assert.match(html, /iPhone \/ iPad AR/);
+  assert.match(html, /True scale/);
 });
