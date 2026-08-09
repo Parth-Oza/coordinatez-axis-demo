@@ -64,6 +64,9 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /footprintProfiles/);
   assert.match(page, /footprint\.posts === 6/);
   assert.match(page, /contactShadowMaterial/);
+  assert.match(page, /sideWallParts/);
+  assert.match(page, /screenTexture/);
+  assert.match(page, /label="Side walls"/);
   assert.match(page, /model-studio-dialog/);
   assert.match(page, /IntersectionObserver/);
   assert.match(page, /\/api\/briefs/);

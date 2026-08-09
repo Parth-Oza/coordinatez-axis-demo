@@ -491,23 +491,25 @@ function RealPergolaViewer({
   yardVisible,
   dusk,
   sizeIndex,
+  sideWalls,
 }: {
   finish: string;
   louversOpen: boolean;
   yardVisible: boolean;
   dusk: boolean;
   sizeIndex: number;
+  sideWalls: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk });
+  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, sideWalls });
   const [viewerReady, setViewerReady] = useState(false);
   const [webglFailed, setWebglFailed] = useState(false);
 
   useEffect(() => {
-    liveStateRef.current = { finish, louversOpen, yardVisible, dusk };
-  }, [dusk, finish, louversOpen, yardVisible]);
+    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, sideWalls };
+  }, [dusk, finish, louversOpen, sideWalls, yardVisible]);
 
   const resetView = useCallback(() => {
     const camera = cameraRef.current;
@@ -752,6 +754,38 @@ function RealPergolaViewer({
     finishRoughnessTexture.wrapT = THREE.RepeatWrapping;
     finishRoughnessTexture.repeat.set(7, 7);
 
+    const screenCanvas = document.createElement("canvas");
+    screenCanvas.width = 256;
+    screenCanvas.height = 256;
+    const screenContext = screenCanvas.getContext("2d");
+    if (screenContext) {
+      const screenGradient = screenContext.createLinearGradient(0, 0, 256, 256);
+      screenGradient.addColorStop(0, "#36453f");
+      screenGradient.addColorStop(0.5, "#202b27");
+      screenGradient.addColorStop(1, "#3c4943");
+      screenContext.fillStyle = screenGradient;
+      screenContext.fillRect(0, 0, 256, 256);
+      for (let thread = 0; thread <= 256; thread += 4) {
+        screenContext.strokeStyle = thread % 12 === 0 ? "rgba(214,226,217,.2)" : "rgba(221,231,224,.09)";
+        screenContext.lineWidth = thread % 12 === 0 ? 0.8 : 0.45;
+        screenContext.beginPath();
+        screenContext.moveTo(thread, 0);
+        screenContext.lineTo(thread, 256);
+        screenContext.stroke();
+        screenContext.strokeStyle = thread % 12 === 0 ? "rgba(5,10,8,.32)" : "rgba(5,10,8,.2)";
+        screenContext.beginPath();
+        screenContext.moveTo(0, thread);
+        screenContext.lineTo(256, thread);
+        screenContext.stroke();
+      }
+    }
+    const screenTexture = new THREE.CanvasTexture(screenCanvas);
+    screenTexture.colorSpace = THREE.SRGBColorSpace;
+    screenTexture.wrapS = THREE.RepeatWrapping;
+    screenTexture.wrapT = THREE.RepeatWrapping;
+    screenTexture.repeat.set(10, 8);
+    screenTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+
     const aluminum = new THREE.MeshPhysicalMaterial({
       color: liveStateRef.current.finish,
       metalness: 0.58,
@@ -825,6 +859,18 @@ function RealPergolaViewer({
       opacity: 0.16,
       depthWrite: false,
       toneMapped: false,
+    });
+    const screenMaterial = new THREE.MeshPhysicalMaterial({
+      map: screenTexture,
+      color: "#6f7d76",
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.62,
+      depthWrite: false,
+      metalness: 0.02,
+      roughness: 0.88,
+      clearcoat: 0.04,
+      clearcoatRoughness: 0.9,
     });
 
     const addBox = (
@@ -925,6 +971,72 @@ function RealPergolaViewer({
       addBox(pergola, [0.35, 0.21, 0.35], [x, 2.97, z], channelMaterial, true, true);
     }
     addBox(pergola, [0.1, 0.29, 0.025], [halfWidth, 0.38, halfDepth + 0.131], gasketMaterial, false, false);
+
+    type SideWallPart = {
+      panel: THREE.Mesh;
+      bottomRail: THREE.Mesh;
+      topY: number;
+      height: number;
+      deployment: number;
+    };
+    const sideWallParts: SideWallPart[] = [];
+    const screenTopY = 2.97;
+    const screenBottomY = 0.2;
+    const screenHeight = screenTopY - screenBottomY;
+    const addScreenAssembly = (
+      axis: "rear" | "side",
+      center: number,
+      span: number,
+    ) => {
+      const clearSpan = Math.max(0.8, span - 0.14);
+      const initialDeployment = liveStateRef.current.sideWalls ? 1 : 0.012;
+      const rearZ = -halfDepth + 0.135;
+      const sideX = -halfWidth + 0.135;
+
+      if (axis === "rear") {
+        addBox(pergola, [span, 0.21, 0.24], [center, screenTopY + 0.015, rearZ], aluminum, true, true);
+        addBox(pergola, [span - 0.12, 0.055, 0.035], [center, screenTopY - 0.1, rearZ + 0.135], channelMaterial, false, false);
+        for (const edge of [-span / 2, span / 2]) {
+          addBox(pergola, [0.075, screenHeight + 0.03, 0.115], [center + edge, (screenTopY + screenBottomY) / 2, rearZ], aluminum, true, true);
+          addBox(pergola, [0.022, screenHeight - 0.12, 0.025], [center + edge + Math.sign(-edge || 1) * 0.045, (screenTopY + screenBottomY) / 2, rearZ + 0.065], gasketMaterial, false, false);
+        }
+      } else {
+        addBox(pergola, [0.24, 0.21, span], [sideX, screenTopY + 0.015, center], aluminum, true, true);
+        addBox(pergola, [0.035, 0.055, span - 0.12], [sideX + 0.135, screenTopY - 0.1, center], channelMaterial, false, false);
+        for (const edge of [-span / 2, span / 2]) {
+          addBox(pergola, [0.115, screenHeight + 0.03, 0.075], [sideX, (screenTopY + screenBottomY) / 2, center + edge], aluminum, true, true);
+          addBox(pergola, [0.025, screenHeight - 0.12, 0.022], [sideX + 0.065, (screenTopY + screenBottomY) / 2, center + edge + Math.sign(-edge || 1) * 0.045], gasketMaterial, false, false);
+        }
+      }
+
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(clearSpan, screenHeight, 1, 24), screenMaterial);
+      panel.scale.y = initialDeployment;
+      panel.position.y = screenTopY - (screenHeight * initialDeployment) / 2;
+      panel.castShadow = true;
+      panel.receiveShadow = true;
+      panel.renderOrder = 1;
+      if (axis === "rear") panel.position.set(center, panel.position.y, rearZ + 0.008);
+      else {
+        panel.position.set(sideX + 0.008, panel.position.y, center);
+        panel.rotation.y = Math.PI / 2;
+      }
+      pergola.add(panel);
+
+      const bottomRail = axis === "rear"
+        ? addBox(pergola, [clearSpan + 0.08, 0.105, 0.11], [center, screenTopY - screenHeight * initialDeployment, rearZ], aluminum, true, true)
+        : addBox(pergola, [0.11, 0.105, clearSpan + 0.08], [sideX, screenTopY - screenHeight * initialDeployment, center], aluminum, true, true);
+      addBox(bottomRail, axis === "rear" ? [0.18, 0.025, 0.125] : [0.125, 0.025, 0.18], [0, -0.06, 0], gasketMaterial, false, false);
+      sideWallParts.push({ panel, bottomRail, topY: screenTopY, height: screenHeight, deployment: initialDeployment });
+    };
+
+    addScreenAssembly("rear", 0, footprint.width - 0.46);
+    if (footprint.posts === 6) {
+      const sideSectionSpan = halfDepth - 0.27;
+      addScreenAssembly("side", -halfDepth / 2, sideSectionSpan);
+      addScreenAssembly("side", halfDepth / 2, sideSectionSpan);
+    } else {
+      addScreenAssembly("side", 0, footprint.depth - 0.46);
+    }
 
     const louverMeshes: THREE.Group[] = [];
     const louverShape = new THREE.Shape();
@@ -1074,6 +1186,15 @@ function RealPergolaViewer({
         const response = Math.min(1, delta * (5.2 + index * 0.035));
         blade.rotation.x = THREE.MathUtils.lerp(blade.rotation.x, bladeTarget, response);
       }
+      const screenTarget = state.sideWalls ? 1 : 0.012;
+      for (const wall of sideWallParts) {
+        wall.deployment = THREE.MathUtils.lerp(wall.deployment, screenTarget, Math.min(1, delta * 4.6));
+        wall.panel.scale.y = wall.deployment;
+        wall.panel.position.y = wall.topY - (wall.height * wall.deployment) / 2;
+        wall.bottomRail.position.y = wall.topY - wall.height * wall.deployment;
+        wall.panel.visible = wall.deployment > 0.018;
+        wall.bottomRail.visible = wall.deployment > 0.018;
+      }
 
       const duskMix = state.dusk ? 1 : 0;
       scene.background = state.yardVisible && panoramaTexture ? panoramaTexture : studioSky;
@@ -1089,6 +1210,7 @@ function RealPergolaViewer({
       ledMaterial.emissiveIntensity = THREE.MathUtils.lerp(ledMaterial.emissiveIntensity, state.dusk ? 5.5 : 0.08, 0.1);
       glowMaterial.opacity = THREE.MathUtils.lerp(glowMaterial.opacity, state.dusk ? 0.28 : 0, 0.09);
       contactShadowMaterial.opacity = THREE.MathUtils.lerp(contactShadowMaterial.opacity, state.dusk ? 0.1 : 0.16, 0.08);
+      screenMaterial.opacity = THREE.MathUtils.lerp(screenMaterial.opacity, state.dusk ? 0.7 : 0.62, 0.08);
       for (const light of pergolaLights) light.intensity = THREE.MathUtils.lerp(light.intensity, duskMix * 13, 0.09);
 
       controls.update(delta);
@@ -1119,6 +1241,7 @@ function RealPergolaViewer({
       stoneTexture.dispose();
       stoneBumpTexture.dispose();
       finishRoughnessTexture.dispose();
+      screenTexture.dispose();
       glowTexture.dispose();
       contactShadowTexture.dispose();
       studioSky.dispose();
@@ -1178,7 +1301,7 @@ export function ProductStudio() {
   const [yardVisible, setYardVisible] = useState(true);
   const [dusk, setDusk] = useState(false);
   const [heater, setHeater] = useState(false);
-  const [screens, setScreens] = useState(false);
+  const [screens, setScreens] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
@@ -1304,11 +1427,13 @@ export function ProductStudio() {
               yardVisible={yardVisible}
               dusk={dusk}
               sizeIndex={selectedSize}
+              sideWalls={screens}
             />
             <div className="viewer-controls" aria-label="3D model controls">
               <Toggle active={louversOpen} onChange={() => setLouversOpen(!louversOpen)} label="Open louvers" />
               <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Show landscape" />
               <Toggle active={dusk} onChange={() => setDusk(!dusk)} label="Evening light" />
+              <Toggle active={screens} onChange={() => setScreens(!screens)} label="Side walls" />
             </div>
           </div>
 
@@ -1382,7 +1507,7 @@ export function ProductStudio() {
               <label className="addon">
                 <input type="checkbox" checked={screens} onChange={(event) => setScreens(event.target.checked)} />
                 <span className="checkmark" />
-                <span><b>Motorized privacy screen</b><small>One 13′ elevation</small></span>
+                <span><b>Motorized side walls</b><small>Rear + side elevations</small></span>
                 <strong>+ $1,190</strong>
               </label>
             </div>
@@ -1698,6 +1823,7 @@ export default function Home() {
   const [louversOpen, setLouversOpen] = useState(false);
   const [yardVisible, setYardVisible] = useState(true);
   const [dusk, setDusk] = useState(false);
+  const [sideWalls, setSideWalls] = useState(true);
   const [selectedFinish, setSelectedFinish] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1716,7 +1842,7 @@ export default function Home() {
   const [newsletterMessage, setNewsletterMessage] = useState("");
 
   const sizePremiums = [0, 900, 2400, 6600];
-  const total = selectedModel.basePrice + sizePremiums[selectedSize];
+  const total = selectedModel.basePrice + sizePremiums[selectedSize] + (sideWalls ? 2380 : 0);
   const filteredModels = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return allModels;
@@ -1772,6 +1898,7 @@ export default function Home() {
     setSelectedModel(model);
     setLouversOpen(false);
     setDusk(false);
+    setSideWalls(true);
     setStudioOpen(true);
   };
 
@@ -1835,7 +1962,7 @@ export default function Home() {
             louversOpen,
             eveningLight: dusk,
             heaters: false,
-            privacyScreen: false,
+            privacyScreen: sideWalls,
           },
         }),
       });
@@ -1977,11 +2104,12 @@ export default function Home() {
           <section className="model-studio-dialog" role="dialog" aria-modal="true" aria-labelledby="studio-model-title">
             <button className="studio-close" onClick={() => setStudioOpen(false)} aria-label="Close 3D studio">×</button>
             <div className="studio-visual">
-              <RealPergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} sizeIndex={selectedSize} />
+              <RealPergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} sizeIndex={selectedSize} sideWalls={sideWalls} />
               <div className="viewer-controls" aria-label="3D model controls">
                 <Toggle active={louversOpen} onChange={() => setLouversOpen(!louversOpen)} label="Open louvers" />
                 <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Yard visible" />
                 <Toggle active={dusk} onChange={() => setDusk(!dusk)} label="Evening light" />
+                <Toggle active={sideWalls} onChange={() => setSideWalls(!sideWalls)} label="Side walls" />
               </div>
             </div>
             <div className="studio-panel">
