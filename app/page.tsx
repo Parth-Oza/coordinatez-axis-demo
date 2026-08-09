@@ -21,7 +21,7 @@ type Face = { points: { x: number; y: number }[]; depth: number; color: string }
 type WallSide = "front" | "rear" | "left" | "right";
 type WallSelections = Record<WallSide, boolean>;
 type SceneTheme = "garden" | "desert";
-type MechanismSound = "louvers" | "wall" | "window";
+type MechanismSound = "louvers" | "wall";
 type BriefForm = {
   name: string;
   email: string;
@@ -59,7 +59,7 @@ function playMechanismSound(kind: MechanismSound) {
     const context = mechanismAudioContext;
     const play = () => {
       const now = context.currentTime;
-      const duration = kind === "wall" ? 0.86 : kind === "louvers" ? 0.62 : 0.46;
+      const duration = kind === "wall" ? 0.86 : 0.62;
       const master = context.createGain();
       const filter = context.createBiquadFilter();
       filter.type = "lowpass";
@@ -73,7 +73,7 @@ function playMechanismSound(kind: MechanismSound) {
       master.connect(context.destination);
 
       const motor = context.createOscillator();
-      motor.type = kind === "window" ? "triangle" : "sawtooth";
+      motor.type = "sawtooth";
       motor.frequency.setValueAtTime(kind === "wall" ? 82 : 118, now);
       motor.frequency.exponentialRampToValueAtTime(kind === "wall" ? 48 : 72, now + duration);
       motor.connect(filter);
@@ -94,7 +94,7 @@ function playMechanismSound(kind: MechanismSound) {
       const latch = context.createOscillator();
       const latchGain = context.createGain();
       latch.type = "sine";
-      latch.frequency.setValueAtTime(kind === "window" ? 420 : 270, now + duration - 0.045);
+      latch.frequency.setValueAtTime(270, now + duration - 0.045);
       latchGain.gain.setValueAtTime(0.0001, now);
       latchGain.gain.setValueAtTime(0.025, now + duration - 0.045);
       latchGain.gain.exponentialRampToValueAtTime(0.0001, now + duration + 0.045);
@@ -574,7 +574,6 @@ function RealPergolaViewer({
   dusk,
   sizeIndex,
   wallSides,
-  windowPanels,
   theme,
 }: {
   finish: string;
@@ -583,19 +582,18 @@ function RealPergolaViewer({
   dusk: boolean;
   sizeIndex: number;
   wallSides: WallSelections;
-  windowPanels: boolean;
   theme: SceneTheme;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, wallSides, windowPanels, theme });
+  const liveStateRef = useRef({ finish, louversOpen, yardVisible, dusk, wallSides, theme });
   const [viewerReady, setViewerReady] = useState(false);
   const [webglFailed, setWebglFailed] = useState(false);
 
   useEffect(() => {
-    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, wallSides, windowPanels, theme };
-  }, [dusk, finish, louversOpen, theme, wallSides, windowPanels, yardVisible]);
+    liveStateRef.current = { finish, louversOpen, yardVisible, dusk, wallSides, theme };
+  }, [dusk, finish, louversOpen, theme, wallSides, yardVisible]);
 
   const resetView = useCallback(() => {
     const camera = cameraRef.current;
@@ -876,17 +874,6 @@ function RealPergolaViewer({
     screenTexture.wrapT = THREE.RepeatWrapping;
     screenTexture.repeat.set(10, 8);
     screenTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    const screenAlphaCanvas = document.createElement("canvas");
-    screenAlphaCanvas.width = 256;
-    screenAlphaCanvas.height = 256;
-    const screenAlphaContext = screenAlphaCanvas.getContext("2d");
-    if (screenAlphaContext) {
-      screenAlphaContext.fillStyle = "#ffffff";
-      screenAlphaContext.fillRect(0, 0, 256, 256);
-      screenAlphaContext.fillStyle = "#000000";
-      screenAlphaContext.fillRect(38, 69, 180, 118);
-    }
-    const screenAlphaTexture = new THREE.CanvasTexture(screenAlphaCanvas);
 
     const aluminum = new THREE.MeshPhysicalMaterial({
       color: liveStateRef.current.finish,
@@ -973,22 +960,6 @@ function RealPergolaViewer({
       roughness: 0.88,
       clearcoat: 0.04,
       clearcoatRoughness: 0.9,
-    });
-    const windowedScreenMaterial = screenMaterial.clone();
-    windowedScreenMaterial.alphaMap = screenAlphaTexture;
-    windowedScreenMaterial.needsUpdate = true;
-    const windowMaterial = new THREE.MeshPhysicalMaterial({
-      color: "#d8e9e4",
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.2,
-      depthWrite: false,
-      metalness: 0,
-      roughness: 0.08,
-      transmission: 0.35,
-      thickness: 0.012,
-      clearcoat: 0.9,
-      clearcoatRoughness: 0.08,
     });
 
     const addBox = (
@@ -1094,7 +1065,6 @@ function RealPergolaViewer({
       side: WallSide;
       assembly: THREE.Group;
       panel: THREE.Mesh;
-      windowGroup: THREE.Group;
       bottomRail: THREE.Mesh;
       topY: number;
       height: number;
@@ -1136,10 +1106,7 @@ function RealPergolaViewer({
         }
       }
 
-      const panel = new THREE.Mesh(
-        new THREE.PlaneGeometry(clearSpan, screenHeight, 1, 24),
-        liveStateRef.current.windowPanels ? windowedScreenMaterial : screenMaterial,
-      );
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(clearSpan, screenHeight, 1, 24), screenMaterial);
       panel.scale.y = initialDeployment;
       panel.position.y = screenTopY - (screenHeight * initialDeployment) / 2;
       panel.castShadow = true;
@@ -1152,32 +1119,11 @@ function RealPergolaViewer({
       }
       assembly.add(panel);
 
-      const windowWidth = clearSpan * 0.7;
-      const windowHeight = screenHeight * 0.43;
-      const windowGroup = new THREE.Group();
-      windowGroup.scale.y = initialDeployment;
-      windowGroup.position.y = panel.position.y;
-      windowGroup.visible = liveStateRef.current.windowPanels && initialDeployment > 0.018;
-      const clearWindow = new THREE.Mesh(new THREE.PlaneGeometry(windowWidth, windowHeight), windowMaterial);
-      clearWindow.position.z = 0.014;
-      clearWindow.renderOrder = 3;
-      windowGroup.add(clearWindow);
-      addBox(windowGroup, [windowWidth + 0.09, 0.05, 0.042], [0, windowHeight / 2, 0.005], gasketMaterial, false, false);
-      addBox(windowGroup, [windowWidth + 0.09, 0.05, 0.042], [0, -windowHeight / 2, 0.005], gasketMaterial, false, false);
-      addBox(windowGroup, [0.05, windowHeight, 0.042], [-windowWidth / 2, 0, 0.005], gasketMaterial, false, false);
-      addBox(windowGroup, [0.05, windowHeight, 0.042], [windowWidth / 2, 0, 0.005], gasketMaterial, false, false);
-      if (horizontal) windowGroup.position.set(center, windowGroup.position.y, wallZ + inwardZ * 0.016);
-      else {
-        windowGroup.position.set(wallX + inwardX * 0.016, windowGroup.position.y, center);
-        windowGroup.rotation.y = Math.PI / 2;
-      }
-      assembly.add(windowGroup);
-
       const bottomRail = horizontal
         ? addBox(assembly, [clearSpan + 0.08, 0.105, 0.11], [center, screenTopY - screenHeight * initialDeployment, wallZ], aluminum, true, true)
         : addBox(assembly, [0.11, 0.105, clearSpan + 0.08], [wallX, screenTopY - screenHeight * initialDeployment, center], aluminum, true, true);
       addBox(bottomRail, horizontal ? [0.18, 0.025, 0.125] : [0.125, 0.025, 0.18], [0, -0.06, 0], gasketMaterial, false, false);
-      sideWallParts.push({ side, assembly, panel, windowGroup, bottomRail, topY: screenTopY, height: screenHeight, deployment: initialDeployment });
+      sideWallParts.push({ side, assembly, panel, bottomRail, topY: screenTopY, height: screenHeight, deployment: initialDeployment });
     };
 
     addScreenAssembly("rear", 0, footprint.width - 0.46);
@@ -1398,12 +1344,8 @@ function RealPergolaViewer({
         const screenTarget = state.wallSides[wall.side] ? 1 : 0.012;
         wall.assembly.visible = state.wallSides[wall.side] || wall.deployment > 0.018;
         wall.deployment = THREE.MathUtils.lerp(wall.deployment, screenTarget, Math.min(1, delta * 4.6));
-        wall.panel.material = state.windowPanels ? windowedScreenMaterial : screenMaterial;
         wall.panel.scale.y = wall.deployment;
         wall.panel.position.y = wall.topY - (wall.height * wall.deployment) / 2;
-        wall.windowGroup.scale.y = wall.deployment;
-        wall.windowGroup.position.y = wall.panel.position.y;
-        wall.windowGroup.visible = state.windowPanels && wall.deployment > 0.018;
         wall.bottomRail.position.y = wall.topY - wall.height * wall.deployment;
         wall.panel.visible = wall.deployment > 0.018;
         wall.bottomRail.visible = wall.deployment > 0.018;
@@ -1433,8 +1375,6 @@ function RealPergolaViewer({
       glowMaterial.opacity = THREE.MathUtils.lerp(glowMaterial.opacity, state.dusk ? 0.28 : 0, 0.09);
       contactShadowMaterial.opacity = THREE.MathUtils.lerp(contactShadowMaterial.opacity, state.dusk ? 0.1 : 0.16, 0.08);
       screenMaterial.opacity = THREE.MathUtils.lerp(screenMaterial.opacity, state.dusk ? 0.7 : 0.62, 0.08);
-      windowedScreenMaterial.opacity = screenMaterial.opacity;
-      windowMaterial.opacity = THREE.MathUtils.lerp(windowMaterial.opacity, state.dusk ? 0.28 : 0.2, 0.08);
       for (const light of pergolaLights) light.intensity = THREE.MathUtils.lerp(light.intensity, duskMix * 13, 0.09);
 
       controls.update(delta);
@@ -1466,7 +1406,6 @@ function RealPergolaViewer({
       stoneBumpTexture.dispose();
       finishRoughnessTexture.dispose();
       screenTexture.dispose();
-      screenAlphaTexture.dispose();
       glowTexture.dispose();
       contactShadowTexture.dispose();
       studioSky.dispose();
@@ -1571,7 +1510,6 @@ export function ProductStudio() {
   const [louversOpen, setLouversOpen] = useState(false);
   const [yardVisible, setYardVisible] = useState(true);
   const [dusk, setDusk] = useState(false);
-  const [windowPanels, setWindowPanels] = useState(false);
   const [theme, setTheme] = useState<SceneTheme>("garden");
   const [heater, setHeater] = useState(false);
   const [wallSides, setWallSides] = useState<WallSelections>({ ...defaultWallSelections });
@@ -1652,7 +1590,6 @@ export function ProductStudio() {
             heaters: heater,
             privacyScreen: selectedWallCount(wallSides) > 0,
             wallSides: wallSideOptions.filter(({ side }) => wallSides[side]).map(({ label }) => label),
-            windowPanels,
             environmentTheme: theme,
           },
         }),
@@ -1709,12 +1646,10 @@ export function ProductStudio() {
               dusk={dusk}
               sizeIndex={selectedSize}
               wallSides={wallSides}
-              windowPanels={windowPanels}
               theme={theme}
             />
             <div className="viewer-controls" aria-label="3D model controls">
               <Toggle active={louversOpen} onChange={() => { playMechanismSound("louvers"); setLouversOpen(!louversOpen); }} label="Open louvers" />
-              <Toggle active={windowPanels} onChange={() => { playMechanismSound("window"); setWindowPanels(!windowPanels); }} label="Wall windows" />
               <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Show landscape" />
               <Toggle active={dusk} onChange={() => setDusk(!dusk)} label="Evening light" />
             </div>
@@ -2109,7 +2044,6 @@ export default function Home() {
   const [louversOpen, setLouversOpen] = useState(false);
   const [yardVisible, setYardVisible] = useState(true);
   const [dusk, setDusk] = useState(false);
-  const [windowPanels, setWindowPanels] = useState(false);
   const [theme, setTheme] = useState<SceneTheme>("garden");
   const [wallSides, setWallSides] = useState<WallSelections>({ ...defaultWallSelections });
   const [selectedFinish, setSelectedFinish] = useState(0);
@@ -2186,7 +2120,6 @@ export default function Home() {
     setSelectedModel(model);
     setLouversOpen(false);
     setDusk(false);
-    setWindowPanels(false);
     setTheme("garden");
     setWallSides({ ...defaultWallSelections });
     setStudioOpen(true);
@@ -2259,7 +2192,6 @@ export default function Home() {
             heaters: false,
             privacyScreen: selectedWallCount(wallSides) > 0,
             wallSides: wallSideOptions.filter(({ side }) => wallSides[side]).map(({ label }) => label),
-            windowPanels,
             environmentTheme: theme,
           },
         }),
@@ -2402,10 +2334,9 @@ export default function Home() {
           <section className="model-studio-dialog" role="dialog" aria-modal="true" aria-labelledby="studio-model-title">
             <button className="studio-close" onClick={() => setStudioOpen(false)} aria-label="Close 3D studio">×</button>
             <div className="studio-visual">
-              <RealPergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} sizeIndex={selectedSize} wallSides={wallSides} windowPanels={windowPanels} theme={theme} />
+              <RealPergolaViewer finish={finishes[selectedFinish].value} louversOpen={louversOpen} yardVisible={yardVisible} dusk={dusk} sizeIndex={selectedSize} wallSides={wallSides} theme={theme} />
               <div className="viewer-controls" aria-label="3D model controls">
                 <Toggle active={louversOpen} onChange={() => { playMechanismSound("louvers"); setLouversOpen(!louversOpen); }} label="Open louvers" />
-                <Toggle active={windowPanels} onChange={() => { playMechanismSound("window"); setWindowPanels(!windowPanels); }} label="Wall windows" />
                 <Toggle active={yardVisible} onChange={() => setYardVisible(!yardVisible)} label="Yard visible" />
                 <Toggle active={dusk} onChange={() => setDusk(!dusk)} label="Evening light" />
               </div>

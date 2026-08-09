@@ -72,7 +72,6 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /addScreenAssembly\("rear"/);
   assert.match(page, /addScreenAssembly\("left"/);
   assert.match(page, /addScreenAssembly\("right"/);
-  assert.match(page, /windowedScreenMaterial/);
   assert.match(page, /playMechanismSound/);
   assert.match(page, /ThemePicker/);
   assert.match(page, /coordinatez-desert-panorama\.png/);

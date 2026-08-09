@@ -495,7 +495,7 @@ footer > div:not(.footer-brand) { display:flex;flex-direction:column;align-items
 @media (max-width: 520px) {
   .announcement { min-height:48px;padding:0 18px}.announcement-copy{grid-template-columns:1fr auto;gap:12px;padding-right:0}.announcement-copy>span{font-size:8px}.announcement-copy a{font-size:8px}.announcement-art{display:none}
   .site-header { padding: 0 18px; }.brand{font-size:20px}
-  .viewer-shell{height:58vh;min-height:420px}.viewer-topline{top:18px;left:18px;right:18px}.viewer-badge{display:none}.viewer-controls{padding:13px 10px;display:grid;grid-template-columns:repeat(2,1fr);gap:4px;overflow:visible}.toggle{min-width:0;flex-direction:column;justify-content:center;gap:6px;font-size:8px;text-align:center}
+  .viewer-shell{height:58vh;min-height:420px}.viewer-topline{top:18px;left:18px;right:18px}.viewer-badge{display:none}.viewer-controls{padding:13px 10px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;overflow:visible}.toggle{min-width:0;flex-direction:column;justify-content:center;gap:6px;font-size:8px;text-align:center}
   .configurator h1 { font-size: 42px; }.finish-options{grid-template-columns:1fr}.finish-options button{min-height:48px}.size-grid{grid-template-columns:1fr 1fr}.purchase-block{margin-left:-5vw;margin-right:-5vw;padding:22px 5vw}
   .performance-section{padding-top:90px}.performance-intro h2,.detail-copy h2,.models-heading h2,.process-copy h2{font-size:53px}.sun-dial{height:280px}.sun{width:170px;height:170px}.dial-structure{height:130px}
   .numbers-section div{padding:35px 6vw}.numbers-section strong{font-size:38px}
@@ -546,7 +546,7 @@ footer > div:not(.footer-brand) { display:flex;flex-direction:column;align-items
   .model-studio-backdrop { padding: 0; }
   .model-studio-dialog { width: 100vw; height: 100vh; }
   .studio-visual { height: 48vh; min-height: 360px; }
-  .studio-visual .viewer-controls { bottom: 13px; padding-left: 8px; padding-right: 8px; display: grid; grid-template-columns: repeat(2,1fr); gap: 5px; }
+  .studio-visual .viewer-controls { bottom: 13px; padding-left: 8px; padding-right: 8px; display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
   .studio-visual .toggle { min-width: 0; padding: 7px 3px; flex-direction: column; gap: 5px; font-size: 7px; }
   .studio-panel { padding: 38px 20px 30px; }
   .studio-panel > h2 { font-size: 39px; }
