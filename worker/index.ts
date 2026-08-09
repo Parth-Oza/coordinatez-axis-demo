@@ -40,6 +40,31 @@ const worker = {
       }, allowedWidths);
     }
 
+    const cacheablePage = request.method === "GET" && !url.pathname.startsWith("/api/") && (request.headers.get("accept") ?? "").includes("text/html");
+    if (cacheablePage && typeof caches !== "undefined" && "default" in caches) {
+      const edgeCache = (caches as CacheStorage & { default: Cache }).default;
+      const cacheUrl = new URL(request.url);
+      cacheUrl.searchParams.set("__coordinatez_release", "v3-account-audio-20260809");
+      const cacheKey = new Request(cacheUrl, request);
+      const cached = await edgeCache.match(cacheKey);
+      if (cached) {
+        const headers = new Headers(cached.headers);
+        headers.set("X-Coordinatez-Cache", "HIT");
+        return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers });
+      }
+
+      const response = await handler.fetch(request, env, ctx);
+      if (response.ok && (response.headers.get("content-type") ?? "").includes("text/html") && !response.headers.has("set-cookie")) {
+        const cacheHeaders = new Headers(response.headers);
+        cacheHeaders.set("Cache-Control", "public, max-age=60, s-maxage=1800, stale-while-revalidate=86400");
+        cacheHeaders.set("X-Coordinatez-Cache", "MISS");
+        const cacheResponse = new Response(response.clone().body, { status: response.status, statusText: response.statusText, headers: cacheHeaders });
+        ctx.waitUntil(edgeCache.put(cacheKey, cacheResponse));
+        return new Response(response.body, { status: response.status, statusText: response.statusText, headers: cacheHeaders });
+      }
+      return response;
+    }
+
     return handler.fetch(request, env, ctx);
   },
 };

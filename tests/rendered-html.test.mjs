@@ -166,7 +166,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.equal((page.match(/id="brief-title"/g) ?? []).length, 2);
   assert.match(layout, /AXIS POWER\+ Gen 2/);
   assert.match(layout, /favicon\.svg/);
-  assert.match(layout, /127\.0\.0\.1/);
+  assert.match(layout, /coordinatez-axis-demo\.ozaparth055\.workers\.dev/);
   assert.match(layout, /viewportFit: "cover"/);
   assert.match(subscriberRoute, /newsletterSubscribers/);
   assert.match(migration, /CREATE TABLE `newsletter_subscribers`/);
