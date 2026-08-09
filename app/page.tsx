@@ -1141,6 +1141,8 @@ function RealPergolaViewer({
 
     const furnitureMetal = new THREE.MeshPhysicalMaterial({ color: "#202724", metalness: 0.56, roughness: 0.32, clearcoat: 0.16 });
     const upholsteryMaterial = new THREE.MeshPhysicalMaterial({ color: "#ded8c8", metalness: 0, roughness: 0.82, sheen: 0.22, sheenColor: new THREE.Color("#fff8e8") });
+    const pillowMaterial = new THREE.MeshPhysicalMaterial({ color: "#63756b", metalness: 0, roughness: 0.9, sheen: 0.3, sheenColor: new THREE.Color("#c2d4c9") });
+    const pillowAccentMaterial = new THREE.MeshPhysicalMaterial({ color: "#a87850", metalness: 0, roughness: 0.88, sheen: 0.25, sheenColor: new THREE.Color("#e4ba91") });
     const accentMaterial = new THREE.MeshStandardMaterial({ color: "#86654a", metalness: 0.02, roughness: 0.68 });
     const counterMaterial = new THREE.MeshPhysicalMaterial({ color: "#c7c4b8", metalness: 0.04, roughness: 0.28, clearcoat: 0.48, clearcoatRoughness: 0.3 });
     const grillMaterial = new THREE.MeshPhysicalMaterial({ color: "#171b19", metalness: 0.74, roughness: 0.22, clearcoat: 0.25 });
@@ -1165,6 +1167,30 @@ function RealPergolaViewer({
 
     const furnitureScale = footprint.width < 6.5 ? 0.84 : 0.94;
     furniture.scale.setScalar(furnitureScale);
+    const addPatioSofa = () => {
+      const sofa = new THREE.Group();
+      sofa.position.set(-0.7 / furnitureScale, 0, (-halfDepth + 0.72) / furnitureScale);
+      addBox(sofa, [2.46, 0.2, 0.88], [0, 0.32, 0], furnitureMetal, true, true);
+      addBox(sofa, [2.34, 0.16, 0.68], [0, 0.51, 0.05], accentMaterial, true, true);
+      addBox(sofa, [2.34, 0.56, 0.12], [0, 0.78, -0.39], furnitureMetal, true, true);
+      for (const x of [-0.78, 0, 0.78]) {
+        const seatCushion = addBox(sofa, [0.7, 0.19, 0.68], [x, 0.63, 0.06], upholsteryMaterial, true, true);
+        seatCushion.rotation.x = -0.018;
+        const backCushion = addBox(sofa, [0.7, 0.66, 0.18], [x, 0.94, -0.3], upholsteryMaterial, true, true);
+        backCushion.rotation.x = -0.11;
+      }
+      for (const side of [-1.23, 1.23]) {
+        addBox(sofa, [0.17, 0.49, 0.84], [side, 0.54, 0], furnitureMetal, true, true);
+        addBox(sofa, [0.13, 0.11, 0.76], [side, 0.82, 0], accentMaterial, true, true);
+        for (const z of [-0.3, 0.3]) addBox(sofa, [0.09, 0.26, 0.09], [side, 0.13, z], furnitureMetal, true, true);
+      }
+      const leftPillow = addBox(sofa, [0.42, 0.44, 0.14], [-0.88, 0.94, -0.14], pillowMaterial, true, true);
+      leftPillow.rotation.z = -0.13;
+      const rightPillow = addBox(sofa, [0.4, 0.4, 0.14], [0.84, 0.92, -0.14], pillowAccentMaterial, true, true);
+      rightPillow.rotation.z = 0.16;
+      furniture.add(sofa);
+    };
+    addPatioSofa();
     addLoungeChair(-1.05, 0.35, -0.1);
     addLoungeChair(0.15, 0.48, 0.1);
     addBox(furniture, [1.35, 0.12, 0.72], [-0.42, 0.4, 1.18], accentMaterial, true, true);
