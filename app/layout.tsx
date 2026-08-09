@@ -19,19 +19,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = host.startsWith("localhost") ? "http" : "https";
   return {
     metadataBase: new URL(`${protocol}://${host}`),
-    title: "Coordinatez — Interactive Outdoor Systems",
+    title: "Coordinatez AXIS POWER+ Gen 2 — Interactive Pergola",
     description:
-      "Explore the Coordinatez Axis range against a living architectural backdrop, configure every model in 3D, and start a project online.",
+      "Explore the Coordinatez AXIS POWER+ Gen 2 in real-time 3D, compare specifications, watch product and installation films, and configure a complete outdoor room.",
     openGraph: {
-      title: "Coordinatez Axis — Find Your Structure",
-      description: "Compare the complete Coordinatez Axis range and explore every model in 3D.",
+      title: "Coordinatez AXIS POWER+ Gen 2",
+      description: "Configure the complete AXIS POWER+ Gen 2 pergola in real-time 3D.",
       type: "website",
       images: [{ url: "/og.png", width: 1792, height: 930, alt: "Coordinatez Axis motorized pergola at dusk" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Coordinatez Axis — Find Your Structure",
-      description: "Compare the complete Coordinatez Axis range and explore every model in 3D.",
+      title: "Coordinatez AXIS POWER+ Gen 2",
+      description: "Configure the complete AXIS POWER+ Gen 2 pergola in real-time 3D.",
       images: ["/og.png"],
     },
   };

@@ -138,13 +138,13 @@ const announcementSlides = [
     title: "Summer studio",
     copy: "Complimentary delivery on every Axis configuration.",
     action: "Explore the system →",
-    href: "#gen-2",
+    href: "#configure",
   },
   {
-    title: "Find your structure",
-    copy: "Match the footprint, finish and climate package to your space.",
-    action: "Configure now →",
-    href: "#gen-2",
+    title: "POWER+ Gen 2",
+    copy: "Motorized 120° louvers, integrated power and all-season control.",
+    action: "See the specification →",
+    href: "#specifications",
   },
   {
     title: "Live design review",
@@ -172,11 +172,58 @@ const featureCards = [
   },
 ];
 
-const modelComparison = [
-  ["Wind rating", "90 mph", "135 mph", "Site specific"],
-  ["Snow load", "20 psf", "40 psf", "Engineered"],
-  ["Maximum span", "13′ × 20′", "16′ × 26′", "Made to measure"],
-  ["Controls", "Remote", "App + remote", "Smart home"],
+const assemblyChapters = [
+  "Site survey & kit inventory",
+  "Footprint layout",
+  "Base plate positioning",
+  "Post anchoring",
+  "Primary beam assembly",
+  "Secondary beam assembly",
+  "Frame squaring",
+  "Drainage channel setup",
+  "Motor beam installation",
+  "Louver axle alignment",
+  "Louver panel installation",
+  "Electrical routing",
+  "LED commissioning",
+  "Wall screen setup",
+  "Final calibration & test",
+].map((title, index) => ({
+  title,
+  index: String(index + 1).padStart(2, "0"),
+  duration: index < 4 ? "04:20" : index < 10 ? "06:10" : "03:45",
+  video: ["/coordinatez-film-living.mp4", "/coordinatez-film-control.mp4", "/coordinatez-film-louvers.mp4"][index % 3],
+  poster: ["/coordinatez-film-living.png", "/coordinatez-film-control.png", "/coordinatez-film-louvers.png"][index % 3],
+}));
+
+const competitorRows = [
+  ["Price range", "$6,890–$18,990", "$7,488–$17,238", "$7,990–$17,990", "$40,000+"],
+  ["Available sizes", "Extended options", "Limited", "Limited", "Custom only"],
+  ["Wind resistance", "80–160 MPH", "Up to 165 MPH", "90 MPH", "100–120 MPH"],
+  ["Snow load", "20–50 PSF", "Up to 60 PSF", "25 PSF", "20–40 PSF"],
+  ["Integrated outlets", "110V + USB-C", "No", "No", "Optional"],
+  ["Beam wiring", "Prewired", "110V", "No", "No"],
+  ["LED lighting", "Integrated", "Optional", "Optional", "Optional"],
+  ["Louver roof", "Motorized standard", "Optional", "Motorized standard", "Optional"],
+  ["Assembly target", "2–4 hours / 4 people", "4–8 hours", "4–8 hours", "8+ hours"],
+  ["Delivery target", "3–15 days", "4–8 weeks", "4–8 weeks", "8–12 weeks"],
+];
+
+const lifestyleScenes = [
+  { title: "Infinity-edge mornings", location: "Coastal retreat", image: "/coordinatez-lifestyle-pool.png" },
+  { title: "The family table", location: "Garden dining", image: "/coordinatez-lifestyle-family.png" },
+  { title: "Blue-hour firelight", location: "Desert terrace", image: "/coordinatez-lifestyle-desert.png" },
+  { title: "A room for rainy days", location: "Forest hillside", image: "/coordinatez-lifestyle-rain.png" },
+  { title: "Long evenings outside", location: "Entertaining", image: "/coordinatez-film-living.png" },
+  { title: "Control in one hand", location: "Connected living", image: "/coordinatez-film-control.png" },
+  { title: "Light shaped precisely", location: "Daylight study", image: "/coordinatez-film-louvers.png" },
+];
+
+const showroomScenes = [
+  { city: "Austin", note: "Outdoor systems studio", image: "/coordinatez-lifestyle-family.png" },
+  { city: "Palm Springs", note: "Desert performance gallery", image: "/coordinatez-lifestyle-desert.png" },
+  { city: "Seattle", note: "All-weather experience", image: "/coordinatez-lifestyle-rain.png" },
+  { city: "San Diego", note: "Coastal living showroom", image: "/coordinatez-lifestyle-pool.png" },
 ];
 
 function money(value: number) {
@@ -1524,6 +1571,132 @@ function ThemePicker({
   );
 }
 
+function ProductFilmShowcase({ onExplore }: { onExplore: () => void }) {
+  const [activeFilm, setActiveFilm] = useState(0);
+  const [filmPlaying, setFilmPlaying] = useState(true);
+  const filmRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const film = filmRef.current;
+    if (!film) return;
+    if (filmPlaying) void film.play().catch(() => setFilmPlaying(false));
+    else film.pause();
+  }, [activeFilm, filmPlaying]);
+
+  return (
+    <section className="prototype-showcase product-film-section" id="films">
+      <div className="prototype-heading reveal">
+        <div><span>Next-level outdoor performance</span><h2>A moving product story.</h2></div>
+        <p>Three short films show how AXIS changes a space through light, weather control and the moments that happen underneath.</p>
+      </div>
+      <div className="prototype-stage reveal">
+        <video key={prototypeFilms[activeFilm].id} ref={filmRef} className="prototype-video" autoPlay muted loop playsInline preload="metadata" poster={prototypeFilms[activeFilm].poster} aria-label={`${prototypeFilms[activeFilm].label} concept film`}>
+          <source src={prototypeFilms[activeFilm].video} type="video/mp4" />
+        </video>
+        <div className="prototype-shade" aria-hidden="true" />
+        <div className="prototype-stage-topline"><span>COORDINATEZ PRODUCT FILM</span><i>0{activeFilm + 1} / 03</i></div>
+        <div className="prototype-story" key={`product-film-${activeFilm}`}>
+          <span>{prototypeFilms[activeFilm].eyebrow}</span>
+          <h2>{prototypeFilms[activeFilm].title}</h2>
+          <p>{prototypeFilms[activeFilm].copy}</p>
+          <div><b>{prototypeFilms[activeFilm].stat}</b><button onClick={onExplore}>Configure in 3D <i>↗</i></button></div>
+        </div>
+        <button className="prototype-play" onClick={() => setFilmPlaying((playing) => !playing)} aria-label={filmPlaying ? "Pause product film" : "Play product film"}>
+          <i>{filmPlaying ? "Ⅱ" : "▶"}</i><span>{filmPlaying ? "Pause film" : "Play film"}</span>
+        </button>
+        <div className="prototype-progress" aria-hidden="true"><i className={filmPlaying ? "is-playing" : ""} key={`${activeFilm}-${filmPlaying}`} /></div>
+      </div>
+      <div className="prototype-chapters" role="tablist" aria-label="Choose a product film">
+        {prototypeFilms.map((film, index) => (
+          <button key={film.id} className={activeFilm === index ? "is-active" : ""} onClick={() => { setActiveFilm(index); setFilmPlaying(true); }} role="tab" aria-selected={activeFilm === index}>
+            <span className="prototype-thumb"><span style={{ backgroundImage: `url(${film.poster})` }} aria-hidden="true" /><i>{film.index}</i></span>
+            <span><small>{film.eyebrow}</small><b>{film.label}</b></span><em>↗</em>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AssemblyLibrary() {
+  const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
+  const chapter = selectedChapter === null ? null : assemblyChapters[selectedChapter];
+
+  useEffect(() => {
+    if (selectedChapter === null) return;
+    const close = (event: KeyboardEvent) => event.key === "Escape" && setSelectedChapter(null);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [selectedChapter]);
+
+  return (
+    <section className="assembly-library" id="assembly">
+      <div className="product-section-heading reveal"><span>Guided build library</span><h2>Assembly, one clear chapter at a time.</h2><p>Fifteen playable walkthroughs cover the complete demo installation path, from layout and anchoring to motor calibration.</p></div>
+      <div className="assembly-grid">
+        {assemblyChapters.map((item, index) => (
+          <button className="assembly-card reveal" key={item.index} onClick={() => setSelectedChapter(index)}>
+            <span className="assembly-poster" style={{ backgroundImage: `linear-gradient(180deg,transparent,rgba(4,8,6,.68)),url(${item.poster})` }}><i>▶</i><small>{item.duration}</small></span>
+            <span><small>CHAPTER {item.index}</small><b>{item.title}</b></span><em>↗</em>
+          </button>
+        ))}
+      </div>
+      {chapter && (
+        <div className="media-modal" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedChapter(null)}>
+          <section role="dialog" aria-modal="true" aria-label={`${chapter.title} assembly video`}>
+            <button className="media-modal-close" onClick={() => setSelectedChapter(null)} aria-label="Close assembly video">×</button>
+            <video key={chapter.index} autoPlay controls playsInline poster={chapter.poster}><source src={chapter.video} type="video/mp4" /><track kind="captions" src="/assembly-captions.vtt" srcLang="en" label="English" default /></video>
+            <div><span>ASSEMBLY CHAPTER {chapter.index}</span><h2>{chapter.title}</h2><p>Coordinatez guided installation prototype · {chapter.duration}</p></div>
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function InstallationChecker({ onStart }: { onStart: () => void }) {
+  const [zip, setZip] = useState("");
+  const [result, setResult] = useState<"idle" | "ready" | "invalid">("idle");
+  return (
+    <section className="installation-checker" id="installation">
+      <div className="installation-copy reveal"><span>Installation service</span><h2>Check your project ZIP.</h2><p>Start with a preliminary installation fit check. A studio specialist will confirm access, surface conditions and local engineering before scheduling.</p></div>
+      <form className="zip-form reveal" onSubmit={(event) => { event.preventDefault(); setResult(/^\d{5}(-\d{4})?$/.test(zip.trim()) ? "ready" : "invalid"); }}>
+        <label htmlFor="install-zip">Installation ZIP code</label>
+        <div><input id="install-zip" inputMode="numeric" autoComplete="postal-code" maxLength={10} value={zip} onChange={(event) => { setZip(event.target.value); setResult("idle"); }} placeholder="Enter ZIP" /><button type="submit">Check availability →</button></div>
+        <p className={`zip-result is-${result}`} aria-live="polite">{result === "ready" ? "Preliminary fit confirmed. Continue to a project review for final availability." : result === "invalid" ? "Enter a valid 5-digit US ZIP code." : "No payment or commitment required."}</p>
+        {result === "ready" && <button type="button" className="zip-start" onClick={onStart}>Start installation review ↗</button>}
+      </form>
+    </section>
+  );
+}
+
+function LifestyleGallery() {
+  const [selectedScene, setSelectedScene] = useState<number | null>(null);
+  const scene = selectedScene === null ? null : lifestyleScenes[selectedScene];
+  return (
+    <>
+      <section className="lifestyle-gallery" id="stories">
+        <div className="product-section-heading reveal"><span>Real-life inspiration</span><h2>Seven spaces. One responsive roof.</h2><p>Explore original Coordinatez concepts across poolside, garden, desert and all-weather settings.</p></div>
+        <div className="lifestyle-grid">
+          {lifestyleScenes.map((item, index) => (
+            <button className={`lifestyle-card reveal scene-${index + 1}`} key={item.title} onClick={() => setSelectedScene(index)}>
+              <span style={{ backgroundImage: `url(${item.image})` }} aria-hidden="true" /><i>{String(index + 1).padStart(2, "0")}</i><div><small>{item.location}</small><b>{item.title}</b></div>
+            </button>
+          ))}
+        </div>
+      </section>
+      {scene && (
+        <div className="media-modal lifestyle-modal" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedScene(null)}>
+          <section role="dialog" aria-modal="true" aria-label={scene.title}>
+            <button className="media-modal-close" onClick={() => setSelectedScene(null)} aria-label="Close lifestyle scene">×</button>
+            <div className="lifestyle-modal-image" style={{ backgroundImage: `url(${scene.image})` }} />
+            <div><span>{scene.location}</span><h2>{scene.title}</h2></div>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function ProductStudio() {
   const [selectedSize, setSelectedSize] = useState(1);
   const [selectedFinish, setSelectedFinish] = useState(0);
@@ -1642,10 +1815,11 @@ export function ProductStudio() {
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Coordinatez home">COORDINATEZ<span>®</span></a>
         <nav className={menuOpen ? "is-open" : ""} aria-label="Main navigation">
-          <a href="#configure" onClick={() => setMenuOpen(false)}>Configure</a>
-          <a href="#engineering" onClick={() => setMenuOpen(false)}>Engineering</a>
-          <a href="#models" onClick={() => setMenuOpen(false)}>Models</a>
-          <a href="#stories" onClick={() => setMenuOpen(false)}>Spaces</a>
+          <a href="#configure" onClick={() => setMenuOpen(false)}>Product</a>
+          <a href="#films" onClick={() => setMenuOpen(false)}>Performance</a>
+          <a href="#assembly" onClick={() => setMenuOpen(false)}>Assembly</a>
+          <a href="#compare" onClick={() => setMenuOpen(false)}>Compare</a>
+          <a href="#showrooms" onClick={() => setMenuOpen(false)}>Showrooms</a>
         </nav>
         <div className="header-actions">
           <button className="text-button" onClick={() => document.querySelector("#contact")?.scrollIntoView({ behavior: "smooth" })}>Book a studio call</button>
@@ -1677,21 +1851,27 @@ export function ProductStudio() {
 
           <div className="configurator">
             <div className="eyebrow-row">
-              <span>Coordinatez outdoor systems</span>
-              <span>Concept 01 / 04</span>
+              <span>Coordinatez Gen 2 outdoor system</span>
+              <span>POWER+ platform</span>
             </div>
-            <h1>AXIS<span>™</span> Motorized Pergola</h1>
+            <h1>AXIS POWER+<span>™</span> Gen 2 Motorized Pergola</h1>
             <div className="rating-row">
               <span className="stars">★★★★★</span>
-              <a href="#stories">4.9 / studio concept</a>
+              <a href="#stories">4.9 / 70 concept reviews</a>
             </div>
             <div className="price-line">From {money(sizes[selectedSize].price)}</div>
-            <p className="lead-copy">A precision-built outdoor room that reads the weather, controls the light, and makes the open air feel architectural.</p>
+            <p className="lead-copy">A flexible motorized pergola for real backyards, with expanded footprints, connected control and all-season aluminum engineering.</p>
             <ul className="feature-list">
-              <li><span>01</span> Motorized 135° aluminum louvers</li>
-              <li><span>02</span> Integrated rain and lighting channels</li>
-              <li><span>03</span> Rated for wind up to 90 mph</li>
+              <li><span>01</span> Motorized 0–120° aluminum louvers</li>
+              <li><span>02</span> 80 MPH wind · 20 PSF snow rating</li>
+              <li><span>03</span> Integrated power, drainage and LED light</li>
             </ul>
+
+            <div className="product-overview-links" aria-label="Product information">
+              <a href="#specifications">Pergola sizes & technical information <b>↓</b></a>
+              <a href="#assembly">Assembly videos <b>↓</b></a>
+              <a href="#compare">Compare to others <b>↓</b></a>
+            </div>
 
             <div className="option-group">
               <div className="option-heading"><span>Layout</span><b>Freestanding</b></div>
@@ -1761,9 +1941,18 @@ export function ProductStudio() {
           </div>
         </section>
 
-        <section className="signal-strip" aria-label="Product highlights">
-          <span>135° LOUVER MOTION</span><i>✦</i><span>CONCEALED DRAINAGE</span><i>✦</i><span>SMART WEATHER CONTROL</span><i>✦</i><span>10-YEAR STRUCTURAL COVER</span>
+        <section className="order-benefits" aria-label="Order benefits">
+          <article><i>✓</i><span><b>Delivery guarantee</b><small>Protected arrival commitment</small></span></article>
+          <article><i>⌂</i><span><b>Free home delivery</b><small>Delivered to your address</small></span></article>
+          <article><i>100</i><span><b>100-day free trial</b><small>Live with AXIS risk-free</small></span></article>
+          <article><i>10</i><span><b>10-year warranty</b><small>Long-term structural cover</small></span></article>
         </section>
+
+        <section className="signal-strip" aria-label="Product highlights">
+          <span>120° LOUVER MOTION</span><i>✦</i><span>CONCEALED DRAINAGE</span><i>✦</i><span>SMART WEATHER CONTROL</span><i>✦</i><span>10-YEAR STRUCTURAL COVER</span>
+        </section>
+
+        <ProductFilmShowcase onExplore={() => document.querySelector("#configure")?.scrollIntoView({ behavior: "smooth" })} />
 
         <section className="performance-section" id="engineering">
           <div className="performance-intro reveal">
@@ -1776,7 +1965,7 @@ export function ProductStudio() {
             <div className="dial-structure">
               {Array.from({ length: 11 }).map((_, index) => <i key={index} style={{ "--i": index } as React.CSSProperties} />)}
             </div>
-            <span>0°</span><span>135°</span>
+            <span>0°</span><span>120°</span>
           </div>
           <div className="performance-grid">
             {featureCards.map((card) => (
@@ -1784,7 +1973,7 @@ export function ProductStudio() {
                 <span>{card.index}</span>
                 <h3>{card.title}</h3>
                 <p>{card.copy}</p>
-                <a href="#models">Explore detail <b>↗</b></a>
+                <a href="#specifications">Explore detail <b>↗</b></a>
               </article>
             ))}
           </div>
@@ -1792,61 +1981,75 @@ export function ProductStudio() {
 
         <section className="numbers-section reveal">
           <div><strong>12 sec</strong><span>Open to closed</span></div>
-          <div><strong>90 mph</strong><span>Wind resistance</span></div>
+          <div><strong>80 mph</strong><span>Wind resistance</span></div>
           <div><strong>20 psf</strong><span>Snow load</span></div>
           <div><strong>10 yr</strong><span>Frame coverage</span></div>
         </section>
 
-        <section className="detail-story" id="stories">
-          <div className="detail-visual reveal">
-            <div className="architectural-frame">
-              <div className="shadow-room"><span /><span /><span /><span /><span /><span /><span /></div>
-              <div className="chair-shape" />
-              <div className="plant-shape"><i /><i /><i /></div>
+        <section className="feature-story is-light" id="power">
+          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-film-control.png)" }}><span>01 / CONNECTED CONTROL</span></div>
+          <div className="feature-story-copy reveal"><span>Integrated outdoor power</span><h2>One system. App, remote and power at every post.</h2><p>Prewired beams keep the installation composed. Control the roof and lighting from a handheld remote or mobile experience, with weather-protected outlets placed where the room needs them.</p><ul><li>IP-rated post outlets</li><li>Integrated perimeter LEDs</li><li>App + remote louver control</li></ul></div>
+        </section>
+
+        <section className="feature-story is-dark is-reversed">
+          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-lifestyle-rain.png)" }}><span>02 / ALL-SEASON SHELTER</span></div>
+          <div className="feature-story-copy reveal"><span>Stronger and tougher</span><h2>Rain moves out. Comfort stays in.</h2><p>Interlocking louvers close into a continuous roof while concealed gutters carry water through separated drainage channels inside the posts.</p><ul><li>6063-T5 aluminum construction</li><li>Water and electrical separation</li><li>60% faster drainage concept</li></ul></div>
+        </section>
+
+        <section className="feature-story is-light">
+          <div className="feature-story-media reveal" style={{ backgroundImage: "url(/coordinatez-lifestyle-family.png)" }}><span>03 / FLEXIBLE ROOM</span></div>
+          <div className="feature-story-copy reveal"><span>Transform with motorized walls</span><h2>Privacy and protection, side by side.</h2><p>Choose each elevation independently in the live configurator. Screens lower only where needed, preserving the open-air character of the room.</p><ul><li>Front, rear, left or right</li><li>Independent motorized movement</li><li>Furniture-scale spatial preview</li></ul></div>
+        </section>
+
+        <section className="specifications-section" id="specifications">
+          <div className="product-section-heading reveal"><span>Pergola sizes & technical information</span><h2>Everything specified.</h2><p>The selected 3D footprint updates the core dimensional record below.</p></div>
+          <div className="specification-layout">
+            <div className="size-blueprints reveal" aria-label="Available pergola sizes">
+              {sizes.map((size, index) => <button key={size.label} className={selectedSize === index ? "is-active" : ""} onClick={() => setSelectedSize(index)}><i><span /><span /><span /><span /></i><b>{size.label}</b><small>{size.meta}</small></button>)}
             </div>
-            <span className="image-caption">Designed for long afternoons / rendered in real time</span>
-          </div>
-          <div className="detail-copy reveal">
-            <span className="section-kicker">From shade to shelter</span>
-            <h2>One structure.<br />Four seasons.</h2>
-            <p>Every line serves the experience below it. The louvers seal against rain, open for ventilation, and cast a changing rhythm of shadow throughout the day.</p>
-            <div className="mini-specs">
-              <div><b>01</b><span>Aircraft-grade aluminum frame</span></div>
-              <div><b>02</b><span>Low-noise linear motor system</span></div>
-              <div><b>03</b><span>Dimmable perimeter lighting</span></div>
-            </div>
-            <button onClick={() => document.querySelector("#configure")?.scrollIntoView({ behavior: "smooth" })}>Return to 3D studio →</button>
+            <dl className="spec-table reveal">
+              {[
+                ["Model", "AXIS POWER+ Gen 2"],
+                ["Finish", finishes[selectedFinish].name],
+                ["Pergola size", sizes[selectedSize].label],
+                ["Post system", selectedSize === 3 ? "6-post extended" : "4-post standard"],
+                ["Overall height", "8′ 2″"],
+                ["Frame material", "6063-T5 aluminum"],
+                ["Water protection", "IP67 roof / IP-rated power"],
+                ["Wind resistance", "80 MPH"],
+                ["Snow load", "20 PSF"],
+                ["Louver range", "0–120° motorized"],
+                ["Drainage", "Concealed dual-direction"],
+                ["Controls", "App + RF remote"],
+              ].map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}
+            </dl>
           </div>
         </section>
 
-        <section className="models-section" id="models">
-          <div className="models-heading reveal">
-            <span className="section-kicker">Find your structure</span>
-            <h2>Three levels of performance.</h2>
-            <p>Start with the space. Match the engineering to the climate.</p>
-          </div>
-          <div className="comparison-wrap reveal">
-            <div className="model-headings">
-              <span>Specification</span>
-              <div><small>Essential</small><b>AXIS</b><em>from $6,890</em></div>
-              <div className="featured"><small>Advanced</small><b>AXIS PRO</b><em>from $9,490</em></div>
-              <div><small>Bespoke</small><b>AXIS ONE</b><em>by consultation</em></div>
+        <section className="competitor-section" id="compare">
+          <div className="product-section-heading reveal"><span>Coordinatez vs others</span><h2>Compare the complete system.</h2><p>One responsive table—clear on desktop, horizontally scrollable on mobile, and never duplicated.</p></div>
+          <div className="competitor-scroll reveal">
+            <div className="competitor-table">
+              <div className="competitor-head"><span>Feature</span><b>AXIS POWER+ Gen 2<small>Coordinatez</small></b><b>Premium kit A<small>Market reference</small></b><b>Premium kit B<small>Market reference</small></b><b>Custom build<small>Traditional</small></b></div>
+              {competitorRows.map((row) => <div className="competitor-row" key={row[0]}>{row.map((cell, index) => index === 0 ? <strong key={cell}>{cell}</strong> : <span className={index === 1 ? "is-axis" : ""} key={`${row[0]}-${index}`}>{cell}{index === 1 && <i>✓</i>}</span>)}</div>)}
             </div>
-            {modelComparison.map((row) => (
-              <div className="comparison-row" key={row[0]}>{row.map((cell, index) => <span key={cell} className={index === 2 ? "featured" : ""}>{cell}</span>)}</div>
-            ))}
           </div>
         </section>
 
-        <section className="process-section">
-          <div className="process-copy reveal">
-            <span className="section-kicker">A clear path outside</span>
-            <h2>From first sketch<br />to first evening.</h2>
-          </div>
-          <div className="process-steps">
-            <article className="reveal"><b>01</b><span>Configure</span><p>Choose the footprint, finish and performance package in the live studio.</p></article>
-            <article className="reveal"><b>02</b><span>Confirm</span><p>We review access, surface conditions and local engineering requirements.</p></article>
-            <article className="reveal"><b>03</b><span>Install</span><p>A labeled kit and guided assembly process bring every part into place.</p></article>
+        <AssemblyLibrary />
+        <InstallationChecker onStart={addToBrief} />
+
+        <section className="assurance-section" id="warranty">
+          <article className="reveal"><span>100</span><div><small>100-day free trial</small><h2>Make sure the room feels right.</h2><p>Experience the structure through a complete season of everyday use with a clear demo trial promise.</p></div></article>
+          <article className="reveal"><span>10</span><div><small>10-year warranty</small><h2>Built for the long outside.</h2><p>Structural coverage protects the core frame while documented components keep ongoing service straightforward.</p></div></article>
+        </section>
+
+        <LifestyleGallery />
+
+        <section className="showroom-gallery" id="showrooms">
+          <div className="product-section-heading reveal"><span>Coordinatez experience spaces</span><h2>See AXIS at full scale.</h2><p>Four showroom concepts demonstrate louver movement, side screens, lighting and furniture-scale planning.</p></div>
+          <div className="showroom-track">
+            {showroomScenes.map((showroom, index) => <article className="showroom-card reveal" key={showroom.city}><div style={{ backgroundImage: `url(${showroom.image})` }}><span>0{index + 1}</span></div><small>{showroom.note}</small><h3>{showroom.city}</h3><button onClick={addToBrief}>Plan a visit ↗</button></article>)}
           </div>
         </section>
 
@@ -1863,9 +2066,9 @@ export function ProductStudio() {
 
       <footer>
         <div className="footer-brand">COORDINATEZ®</div>
-        <div><b>Explore</b><a href="#configure">3D configurator</a><a href="#engineering">Engineering</a><a href="#models">Model range</a></div>
-        <div><b>Studio</b><a href="#contact">Book a call</a><a href="#stories">Outdoor spaces</a><a href="#top">Return to top</a></div>
-        <div className="footer-note"><p>A high-fidelity demonstration experience built for a client presentation.</p><span>© 2026 Coordinatez Demo</span></div>
+        <div><b>Product</b><a href="#configure">3D configurator</a><a href="#specifications">Specifications</a><a href="#compare">Compare systems</a></div>
+        <div><b>Support</b><a href="#assembly">Assembly library</a><a href="#installation">Installation check</a><a href="#warranty">Trial & warranty</a></div>
+        <div className="footer-note"><p>A complete Coordinatez AXIS product demonstration for planning a responsive outdoor room.</p><span>© 2026 Coordinatez Demo</span></div>
       </footer>
 
       {briefOpen && (
@@ -2093,7 +2296,7 @@ function RangeCard({
   );
 }
 
-export default function Home() {
+export function ModelRangeLanding() {
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [selectedModel, setSelectedModel] = useState<RangeModel>(modelRanges[0].models[0]);
   const [studioOpen, setStudioOpen] = useState(false);
@@ -2509,4 +2712,8 @@ export default function Home() {
       <div className={`toast ${toast ? "is-visible" : ""}`} role="status"><i>✓</i><div><b>Project brief received</b><span>{selectedModel.name} · {money(total)}</span></div></div>
     </div>
   );
+}
+
+export default function Home() {
+  return <ProductStudio />;
 }

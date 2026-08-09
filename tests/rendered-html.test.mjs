@@ -23,23 +23,28 @@ async function render() {
   );
 }
 
-test("server-renders the Coordinatez model comparison experience", async () => {
+test("server-renders the complete Coordinatez AXIS product experience", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /COORDINATEZ/);
-  assert.match(html, /Gen 2 Motorized Pergola/);
-  assert.match(html, /Gen 1 Motorized Pergola/);
-  assert.match(html, /Shape the light/);
-  assert.match(html, /Interactive model range/);
+  assert.match(html, /AXIS POWER\+ Gen 2/);
   assert.match(html, /A moving product story/);
   assert.match(html, /Made for the hours you keep/);
-  assert.match(html, /AXIS PRO Motorized Pergola/);
-  assert.match(html, /View model/);
+  assert.match(html, /Everything specified/);
+  assert.match(html, /Compare the complete system/);
+  assert.match(html, /Assembly, one clear chapter at a time/);
+  assert.match(html, /Check your project ZIP/);
+  assert.match(html, /100-day free trial/);
+  assert.match(html, /10-year warranty/);
+  assert.match(html, /Seven spaces\. One responsive roof/);
+  assert.match(html, /See AXIS at full scale/);
   assert.match(html, /Start a project/);
-  assert.equal((html.match(/class="range-card range-reveal(?: is-visible)?"/g) ?? []).length, 4);
+  assert.equal((html.match(/class="assembly-card reveal"/g) ?? []).length, 15);
+  assert.equal((html.match(/class="lifestyle-card reveal scene-/g) ?? []).length, 7);
+  assert.doesNotMatch(html, /Find your structure/);
 });
 
 test("ships the comparison imagery and full-stack interaction hooks", async () => {
@@ -59,6 +64,10 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   await access(new URL("../public/coordinatez-film-living.mp4", import.meta.url));
   await access(new URL("../public/coordinatez-film-control.mp4", import.meta.url));
   await access(new URL("../public/coordinatez-film-louvers.mp4", import.meta.url));
+  await access(new URL("../public/coordinatez-lifestyle-pool.png", import.meta.url));
+  await access(new URL("../public/coordinatez-lifestyle-family.png", import.meta.url));
+  await access(new URL("../public/coordinatez-lifestyle-desert.png", import.meta.url));
+  await access(new URL("../public/coordinatez-lifestyle-rain.png", import.meta.url));
   assert.match(page, /<RealPergolaViewer/);
   assert.match(page, /THREE\.WebGLRenderer/);
   assert.match(page, /OrbitControls/);
@@ -92,13 +101,19 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /model-search-dialog/);
   assert.match(page, /prototypeFilms/);
   assert.match(page, /coordinatez-film-living\.mp4/);
+  assert.match(page, /assemblyChapters/);
+  assert.match(page, /competitorRows/);
+  assert.match(page, /lifestyleScenes/);
+  assert.match(page, /showroomScenes/);
+  assert.match(page, /InstallationChecker/);
+  assert.match(page, /ProductStudio/);
   assert.match(css, /models-triptych\.jpg/);
   assert.match(css, /url\("\/hero-triptych-v2\.jpg"\)/);
   assert.match(css, /hero-louver/);
   assert.match(css, /prototype-showcase/);
   assert.match(css, /scroll-snap-type:\s*x mandatory/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.match(layout, /Interactive Outdoor Systems/);
+  assert.match(layout, /AXIS POWER\+ Gen 2/);
   assert.match(subscriberRoute, /newsletterSubscribers/);
   assert.match(migration, /CREATE TABLE `newsletter_subscribers`/);
 });
