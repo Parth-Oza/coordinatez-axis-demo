@@ -43,6 +43,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("UNIQUE") || message.includes("unique")) return accountJson({ error: "An account already exists for this email." }, 409);
+    console.error("Coordinatez account registration failed", error);
     return accountJson({ error: "We could not create the account. Please try again." }, 500);
   }
 }

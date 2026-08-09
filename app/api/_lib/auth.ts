@@ -8,7 +8,9 @@ import {
 
 const COOKIE_NAME = "coordinatez_session";
 const SESSION_DAYS = 30;
-const PASSWORD_ITERATIONS = 210_000;
+// Cloudflare Workers caps PBKDF2 at 100,000 iterations. Keep the maximum
+// supported cost and pair it with a unique 128-bit salt for every account.
+const PASSWORD_ITERATIONS = 100_000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type AccountUser = {

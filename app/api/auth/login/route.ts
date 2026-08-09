@@ -37,7 +37,8 @@ export async function POST(request: Request) {
       200,
       { "Set-Cookie": sessionCookie(request, session.token, session.expiresAt) },
     );
-  } catch {
+  } catch (error) {
+    console.error("Coordinatez account sign-in failed", error);
     return accountJson({ error: "We could not sign you in. Please try again." }, 500);
   }
 }
