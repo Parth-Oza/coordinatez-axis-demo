@@ -32,6 +32,8 @@ test("server-renders the complete Coordinatez AXIS product experience", async ()
   assert.match(html, /COORDINATEZ/);
   assert.match(html, /AXIS POWER\+ Gen 2/);
   assert.match(html, /A moving product story/);
+  assert.match(html, /Composure, whatever the forecast/);
+  assert.match(html, /Built for the moment/);
   assert.match(html, /Made for the hours you keep/);
   assert.match(html, /Everything specified/);
   assert.match(html, /Compare the complete system/);
@@ -75,6 +77,7 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   await access(new URL("../public/coordinatez-lifestyle-family.avif", import.meta.url));
   await access(new URL("../public/coordinatez-lifestyle-desert.avif", import.meta.url));
   await access(new URL("../public/coordinatez-lifestyle-rain.avif", import.meta.url));
+  await access(new URL("../public/coordinatez-storm-performance.avif", import.meta.url));
   await access(new URL("../public/ar/coordinatez-axis-10x10-carbon.glb", import.meta.url));
   await access(new URL("../public/ar/coordinatez-axis-10x10-carbon.usdz", import.meta.url));
   await access(new URL("../public/ar/coordinatez-ar-qr-13x20-sand.png", import.meta.url));
@@ -112,6 +115,8 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(page, /prototypeFilms/);
   assert.match(page, /coordinatez-film-living\.mp4/);
   assert.match(page, /startAmbientScore/);
+  assert.match(page, /function StormPerformanceHero/);
+  assert.match(page, /coordinatez-storm-performance\.avif/);
   assert.match(page, /SpeechSynthesisUtterance/);
   assert.match(page, /preload="none"/);
   assert.match(page, /\/api\/projects/);
@@ -159,6 +164,8 @@ test("ships the comparison imagery and full-stack interaction hooks", async () =
   assert.match(css, /url\("\/hero-triptych-v2\.jpg"\)/);
   assert.match(css, /hero-louver/);
   assert.match(css, /prototype-showcase/);
+  assert.match(css, /storm-performance/);
+  assert.match(css, /@keyframes storm-flash/);
   assert.match(css, /scroll-snap-type:\s*x mandatory/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /@keyframes viewer-enter \{ from \{ opacity: 0; transform: translateX\(-18px\); \} to \{ opacity: 1; transform: none; \} \}/);

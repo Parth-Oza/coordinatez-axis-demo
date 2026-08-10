@@ -1926,6 +1926,58 @@ function DesignComparison({
   );
 }
 
+const stormPerformanceStats = [
+  { prefix: "Up to", value: "160 MPH", label: "Wind engineering" },
+  { prefix: "Up to", value: "50 PSF", label: "Snow-load range" },
+  { prefix: "", value: "6063-T5", label: "Aluminum frame" },
+  { prefix: "", value: "IP-rated", label: "Protected power" },
+];
+
+function StormPerformanceHero() {
+  const [motionActive, setMotionActive] = useState(true);
+
+  return (
+    <section className={`storm-performance ${motionActive ? "is-live" : "is-still"}`} id="storm-performance" aria-labelledby="storm-performance-title">
+      <div className="storm-performance-heading reveal">
+        <div><span>All-season engineering</span><h2 id="storm-performance-title">Composure, whatever the forecast.</h2></div>
+        <p>A cinematic look at the AXIS engineering range—closed louvers, concealed drainage and protected power working as one system.</p>
+      </div>
+      <div className="storm-performance-stage reveal">
+        {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size AVIF is lazy-loaded on a Cloudflare Worker */}
+        <img src="/coordinatez-storm-performance.avif" alt="Graphite Coordinatez pergola sheltering an outdoor lounge in a dramatic rainstorm" loading="lazy" decoding="async" width="1672" height="941" />
+        <div className="storm-performance-vignette" aria-hidden="true" />
+        <div className="storm-performance-rain" aria-hidden="true" />
+        <div className="storm-performance-flash" aria-hidden="true" />
+
+        <div className="storm-performance-topline">
+          <span><i /> COORDINATEZ WEATHER LAB</span>
+          <button type="button" onClick={() => setMotionActive((active) => !active)} aria-pressed={motionActive}>
+            <i>{motionActive ? "Ⅱ" : "▶"}</i>{motionActive ? "Pause atmosphere" : "Play atmosphere"}
+          </button>
+        </div>
+
+        <div className="storm-performance-copy">
+          <span>AXIS POWER+ / STORM STUDY 01</span>
+          <h3>Built for the moment<br /><em>the sky changes.</em></h3>
+          <p>Warm light stays on. Water moves away. The room beneath remains unmistakably yours.</p>
+          <a href="#specifications">Explore engineering <b>↗</b></a>
+        </div>
+
+        <div className="storm-performance-stats" aria-label="AXIS engineering range highlights">
+          {stormPerformanceStats.map((stat) => (
+            <div key={stat.label}>
+              <small>{stat.prefix || "Material"}</small>
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="storm-performance-note">Performance shown represents the Coordinatez AXIS range. Final ratings depend on model, anchoring and site-specific engineering.</p>
+    </section>
+  );
+}
+
 function ProductFilmShowcase({ onExplore }: { onExplore: () => void }) {
   const [activeFilm, setActiveFilm] = useState(0);
   const [filmPlaying, setFilmPlaying] = useState(true);
@@ -2632,6 +2684,8 @@ export function ProductStudio() {
         </section>
 
         <ProductFilmShowcase onExplore={() => document.querySelector("#configure")?.scrollIntoView({ behavior: "smooth" })} />
+
+        <StormPerformanceHero />
 
         <section className="performance-section" id="engineering">
           <div className="performance-intro reveal">
