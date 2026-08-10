@@ -192,6 +192,24 @@ const sizes = [
   { label: "13′ × 20′", meta: "6 posts", price: 13490, slug: "13x20", width: 13, depth: 20 },
 ];
 
+const viewerFootprints = [
+  { width: 6, depth: 4.1, posts: 4 },
+  { width: 6, depth: 5.25, posts: 4 },
+  { width: 7.15, depth: 5.25, posts: 4 },
+  { width: 7.15, depth: 7.4, posts: 6 },
+] as const;
+
+function viewerCameraPreset(sizeIndex: number) {
+  const footprint = viewerFootprints[sizeIndex] ?? viewerFootprints[0];
+  const extent = Math.max(footprint.width, footprint.depth);
+  const distance = extent * 1.56;
+  return {
+    position: new THREE.Vector3(distance * 0.62, 2 + extent * 0.3, distance * 0.82),
+    target: new THREE.Vector3(0, 1.42, -0.12),
+    extent,
+  };
+}
+
 const finishes = [
   { name: "Carbon", value: "#414946", slug: "carbon" },
   { name: "Cloud", value: "#d5d8d3", slug: "cloud" },
@@ -723,12 +741,16 @@ function RealPergolaViewer({
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (!camera || !controls) return;
-    const cameraScale = sizeIndex === 3 ? 1.12 : sizeIndex === 2 ? 1.04 : 1;
-    camera.position.set(8.45 * cameraScale, 5.2 + (cameraScale - 1) * 2.2, 10.85 * cameraScale);
-    controls.target.set(0, 1.48, 0);
+    const preset = viewerCameraPreset(sizeIndex);
+    camera.position.copy(preset.position);
+    controls.target.copy(preset.target);
     controls.autoRotate = true;
     controls.update();
   }, [sizeIndex]);
+
+  useEffect(() => {
+    resetView();
+  }, [resetView, theme]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -738,8 +760,9 @@ function RealPergolaViewer({
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
-        antialias: window.innerWidth > 720 && (window.devicePixelRatio || 1) <= 1.5,
+        antialias: true,
         alpha: false,
+        precision: "highp",
         powerPreference: "high-performance",
       });
     } catch {
@@ -749,14 +772,14 @@ function RealPergolaViewer({
 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.02;
+    renderer.toneMappingExposure = 0.9;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(39, 1, 0.1, 140);
-    const cameraScale = sizeIndex === 3 ? 1.12 : sizeIndex === 2 ? 1.04 : 1;
-    camera.position.set(8.45 * cameraScale, 5.2 + (cameraScale - 1) * 2.2, 10.85 * cameraScale);
+    const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 140);
+    const cameraPreset = viewerCameraPreset(sizeIndex);
+    camera.position.copy(cameraPreset.position);
     cameraRef.current = camera;
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -768,13 +791,13 @@ function RealPergolaViewer({
     controls.enableDamping = true;
     controls.dampingFactor = 0.075;
     controls.enablePan = false;
-    controls.minDistance = 9.6;
-    controls.maxDistance = 24;
-    controls.minPolarAngle = 0.42;
+    controls.minDistance = 7 + cameraPreset.extent * 0.2;
+    controls.maxDistance = 19 + cameraPreset.extent * 0.8;
+    controls.minPolarAngle = 0.72;
     controls.maxPolarAngle = 1.43;
     controls.rotateSpeed = 0.62;
     controls.zoomSpeed = 0.72;
-    controls.target.set(0, 1.48, 0);
+    controls.target.copy(cameraPreset.target);
     controls.autoRotate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     controls.autoRotateSpeed = 0.32;
     const stopAutoRotate = () => { controls.autoRotate = false; };
@@ -814,7 +837,9 @@ function RealPergolaViewer({
     const loadPanorama = (sceneTheme: SceneTheme) => {
       if (panoramaTextures[sceneTheme] || panoramaLoading[sceneTheme]) return;
       panoramaLoading[sceneTheme] = true;
-      const filename = sceneTheme === "desert" ? "coordinatez-desert-panorama.avif" : "coordinatez-patio-panorama-v2.avif";
+      const filename = sceneTheme === "desert"
+        ? "coordinatez-desert-house-panorama.jpg"
+        : "coordinatez-garden-house-panorama.jpg";
       textureLoader.load(
         `${panoramaBase}${filename}`,
         (texture) => {
@@ -831,7 +856,7 @@ function RealPergolaViewer({
           if (liveStateRef.current.yardVisible && liveStateRef.current.theme === sceneTheme) {
             scene.background = texture;
             scene.environment = panoramaEnvironments[sceneTheme];
-            scene.environmentIntensity = 0.86;
+            scene.environmentIntensity = 0.72;
           }
           panoramaLoaded = true;
         },
@@ -845,37 +870,37 @@ function RealPergolaViewer({
     loadPanorama(liveStateRef.current.theme);
 
     const woodCanvas = document.createElement("canvas");
-    woodCanvas.width = 1024;
-    woodCanvas.height = 1024;
+    woodCanvas.width = 2048;
+    woodCanvas.height = 2048;
     const woodContext = woodCanvas.getContext("2d");
     if (woodContext) {
-      const base = woodContext.createLinearGradient(0, 0, 1024, 1024);
+      const base = woodContext.createLinearGradient(0, 0, 2048, 2048);
       base.addColorStop(0, "#c6a37a");
       base.addColorStop(0.5, "#9d7653");
       base.addColorStop(1, "#b58b61");
       woodContext.fillStyle = base;
-      woodContext.fillRect(0, 0, 1024, 1024);
-      for (let x = 0; x <= 1024; x += 128) {
+      woodContext.fillRect(0, 0, 2048, 2048);
+      for (let x = 0; x <= 2048; x += 256) {
         woodContext.strokeStyle = "rgba(48,27,15,.46)";
         woodContext.lineWidth = 5;
         woodContext.beginPath();
         woodContext.moveTo(x, 0);
-        woodContext.lineTo(x, 1024);
+        woodContext.lineTo(x, 2048);
         woodContext.stroke();
         woodContext.strokeStyle = "rgba(255,236,207,.2)";
         woodContext.lineWidth = 2;
         woodContext.beginPath();
         woodContext.moveTo(x + 6, 0);
-        woodContext.lineTo(x + 6, 1024);
+        woodContext.lineTo(x + 10, 2048);
         woodContext.stroke();
       }
-      for (let index = 0; index < 75; index += 1) {
+      for (let index = 0; index < 150; index += 1) {
         const y = index * 13.7;
         woodContext.strokeStyle = `rgba(60,34,19,${0.035 + (index % 4) * 0.012})`;
         woodContext.lineWidth = 1.2;
         woodContext.beginPath();
         woodContext.moveTo(0, y);
-        for (let x = 0; x <= 1024; x += 64) {
+        for (let x = 0; x <= 2048; x += 96) {
           woodContext.lineTo(x, y + Math.sin(x * 0.022 + index) * 4.5);
         }
         woodContext.stroke();
@@ -889,11 +914,11 @@ function RealPergolaViewer({
     woodTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 
     const stoneCanvas = document.createElement("canvas");
-    stoneCanvas.width = 1024;
-    stoneCanvas.height = 1024;
+    stoneCanvas.width = 2048;
+    stoneCanvas.height = 2048;
     const stoneBumpCanvas = document.createElement("canvas");
-    stoneBumpCanvas.width = 1024;
-    stoneBumpCanvas.height = 1024;
+    stoneBumpCanvas.width = 2048;
+    stoneBumpCanvas.height = 2048;
     const stoneContext = stoneCanvas.getContext("2d");
     const stoneBumpContext = stoneBumpCanvas.getContext("2d");
     const seeded = (index: number) => {
@@ -901,12 +926,12 @@ function RealPergolaViewer({
       return value - Math.floor(value);
     };
     if (stoneContext && stoneBumpContext) {
-      stoneContext.fillStyle = "#d8d1c5";
-      stoneContext.fillRect(0, 0, 1024, 1024);
+      stoneContext.fillStyle = "#c9c2b6";
+      stoneContext.fillRect(0, 0, 2048, 2048);
       stoneBumpContext.fillStyle = "#9a9a96";
-      stoneBumpContext.fillRect(0, 0, 1024, 1024);
-      const tileWidth = 256;
-      const tileHeight = 205;
+      stoneBumpContext.fillRect(0, 0, 2048, 2048);
+      const tileWidth = 512;
+      const tileHeight = 410;
       for (let row = -1; row < 6; row += 1) {
         for (let column = -1; column < 5; column += 1) {
           const index = (row + 1) * 7 + column + 2;
@@ -929,9 +954,9 @@ function RealPergolaViewer({
           stoneBumpContext.strokeRect(x + 3, y + 3, tileWidth - 6, tileHeight - 6);
         }
       }
-      for (let index = 0; index < 2400; index += 1) {
-        const x = seeded(index * 2 + 88) * 1024;
-        const y = seeded(index * 2 + 89) * 1024;
+      for (let index = 0; index < 4800; index += 1) {
+        const x = seeded(index * 2 + 88) * 2048;
+        const y = seeded(index * 2 + 89) * 2048;
         const radius = 0.35 + seeded(index + 99) * 1.7;
         stoneContext.fillStyle = `rgba(88,77,64,${0.018 + seeded(index + 250) * 0.045})`;
         stoneContext.beginPath();
@@ -945,7 +970,7 @@ function RealPergolaViewer({
     stoneTexture.colorSpace = THREE.SRGBColorSpace;
     stoneTexture.wrapS = THREE.RepeatWrapping;
     stoneTexture.wrapT = THREE.RepeatWrapping;
-    stoneTexture.repeat.set(12, 12);
+    stoneTexture.repeat.set(5.5, 5.5);
     stoneTexture.anisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
     const stoneBumpTexture = new THREE.CanvasTexture(stoneBumpCanvas);
     stoneBumpTexture.wrapS = THREE.RepeatWrapping;
@@ -953,11 +978,11 @@ function RealPergolaViewer({
     stoneBumpTexture.repeat.copy(stoneTexture.repeat);
 
     const finishRoughnessCanvas = document.createElement("canvas");
-    finishRoughnessCanvas.width = 256;
-    finishRoughnessCanvas.height = 256;
+    finishRoughnessCanvas.width = 512;
+    finishRoughnessCanvas.height = 512;
     const finishRoughnessContext = finishRoughnessCanvas.getContext("2d");
     if (finishRoughnessContext) {
-      const image = finishRoughnessContext.createImageData(256, 256);
+      const image = finishRoughnessContext.createImageData(512, 512);
       for (let index = 0; index < image.data.length; index += 4) {
         const grain = Math.round(118 + seeded(index) * 38);
         image.data[index] = grain;
@@ -973,27 +998,27 @@ function RealPergolaViewer({
     finishRoughnessTexture.repeat.set(7, 7);
 
     const screenCanvas = document.createElement("canvas");
-    screenCanvas.width = 256;
-    screenCanvas.height = 256;
+    screenCanvas.width = 512;
+    screenCanvas.height = 512;
     const screenContext = screenCanvas.getContext("2d");
     if (screenContext) {
-      const screenGradient = screenContext.createLinearGradient(0, 0, 256, 256);
+      const screenGradient = screenContext.createLinearGradient(0, 0, 512, 512);
       screenGradient.addColorStop(0, "#36453f");
       screenGradient.addColorStop(0.5, "#202b27");
       screenGradient.addColorStop(1, "#3c4943");
       screenContext.fillStyle = screenGradient;
-      screenContext.fillRect(0, 0, 256, 256);
-      for (let thread = 0; thread <= 256; thread += 4) {
-        screenContext.strokeStyle = thread % 12 === 0 ? "rgba(214,226,217,.2)" : "rgba(221,231,224,.09)";
-        screenContext.lineWidth = thread % 12 === 0 ? 0.8 : 0.45;
+      screenContext.fillRect(0, 0, 512, 512);
+      for (let thread = 0; thread <= 512; thread += 8) {
+        screenContext.strokeStyle = thread % 24 === 0 ? "rgba(214,226,217,.2)" : "rgba(221,231,224,.09)";
+        screenContext.lineWidth = thread % 24 === 0 ? 1.4 : 0.8;
         screenContext.beginPath();
         screenContext.moveTo(thread, 0);
-        screenContext.lineTo(thread, 256);
+        screenContext.lineTo(thread, 512);
         screenContext.stroke();
-        screenContext.strokeStyle = thread % 12 === 0 ? "rgba(5,10,8,.32)" : "rgba(5,10,8,.2)";
+        screenContext.strokeStyle = thread % 24 === 0 ? "rgba(5,10,8,.32)" : "rgba(5,10,8,.2)";
         screenContext.beginPath();
         screenContext.moveTo(0, thread);
-        screenContext.lineTo(256, thread);
+        screenContext.lineTo(512, thread);
         screenContext.stroke();
       }
     }
@@ -1006,19 +1031,19 @@ function RealPergolaViewer({
 
     const aluminum = new THREE.MeshPhysicalMaterial({
       color: liveStateRef.current.finish,
-      metalness: 0.58,
-      roughness: 0.29,
+      metalness: 0.46,
+      roughness: 0.38,
       roughnessMap: finishRoughnessTexture,
-      clearcoat: 0.22,
-      clearcoatRoughness: 0.25,
+      clearcoat: 0.14,
+      clearcoatRoughness: 0.36,
     });
     const louverMaterial = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(liveStateRef.current.finish).offsetHSL(0, 0, -0.025),
-      metalness: 0.55,
-      roughness: 0.28,
+      metalness: 0.44,
+      roughness: 0.37,
       roughnessMap: finishRoughnessTexture,
-      clearcoat: 0.18,
-      clearcoatRoughness: 0.3,
+      clearcoat: 0.12,
+      clearcoatRoughness: 0.38,
     });
     const channelMaterial = new THREE.MeshStandardMaterial({ color: "#141a18", metalness: 0.76, roughness: 0.27 });
     const fastenerMaterial = new THREE.MeshStandardMaterial({ color: "#8f9793", metalness: 0.94, roughness: 0.17 });
@@ -1027,8 +1052,8 @@ function RealPergolaViewer({
     const patioMaterial = new THREE.MeshPhysicalMaterial({
       map: stoneTexture,
       bumpMap: stoneBumpTexture,
-      bumpScale: 0.032,
-      color: "#fff9ed",
+      bumpScale: 0.018,
+      color: "#e5dfd3",
       metalness: 0.01,
       roughness: 0.86,
       clearcoat: 0.025,
@@ -1108,21 +1133,39 @@ function RealPergolaViewer({
       return mesh;
     };
 
-    const deck: THREE.Mesh<THREE.BufferGeometry, THREE.Material> = new THREE.Mesh(new THREE.CircleGeometry(52, 128), patioMaterial);
-    deck.rotation.x = -Math.PI / 2;
-    deck.position.y = -0.018;
+    const footprint = viewerFootprints[sizeIndex] ?? viewerFootprints[0];
+    const halfWidth = footprint.width / 2;
+    const halfDepth = footprint.depth / 2;
+    const deck: THREE.Mesh<THREE.BufferGeometry, THREE.Material> = new THREE.Mesh(
+      new RoundedBoxGeometry(footprint.width + 5.4, 0.09, footprint.depth + 5.1, 4, 0.08),
+      patioMaterial,
+    );
+    deck.position.y = -0.068;
     deck.receiveShadow = true;
     scene.add(deck);
 
-    const footprintProfiles = [
-      { width: 6, depth: 4.1, posts: 4 },
-      { width: 6, depth: 5.25, posts: 4 },
-      { width: 7.15, depth: 5.25, posts: 4 },
-      { width: 7.15, depth: 7.4, posts: 6 },
-    ] as const;
-    const footprint = footprintProfiles[sizeIndex] ?? footprintProfiles[0];
-    const halfWidth = footprint.width / 2;
-    const halfDepth = footprint.depth / 2;
+    const shadowCatcher = new THREE.Mesh(
+      new THREE.CircleGeometry(42, 96),
+      new THREE.ShadowMaterial({ color: "#132019", opacity: 0.075 }),
+    );
+    shadowCatcher.rotation.x = -Math.PI / 2;
+    shadowCatcher.position.y = -0.116;
+    shadowCatcher.receiveShadow = true;
+    scene.add(shadowCatcher);
+
+    const realWorldContext = new THREE.Group();
+    realWorldContext.name = "real-world-house-context";
+    scene.add(realWorldContext);
+    const threshold = addBox(
+      realWorldContext,
+      [footprint.width + 4.2, 0.12, 0.58],
+      [0, -0.005, -(halfDepth + 2.05)],
+      patioMaterial,
+      false,
+      true,
+    );
+    threshold.rotation.x = -0.008;
+
     const innerWidth = footprint.width - 0.18;
     const innerDepth = footprint.depth - 0.3;
     const frameFrontZ = halfDepth + 0.03;
@@ -1426,12 +1469,12 @@ function RealPergolaViewer({
     brandPlate.position.set(Math.min(0.68, footprint.width * 0.11), 3.18, halfDepth + 0.195);
     pergola.add(brandPlate);
 
-    const hemisphere = new THREE.HemisphereLight("#fff5df", "#6b655c", 1.48);
+    const hemisphere = new THREE.HemisphereLight("#f7f8f4", "#6f746d", 1.08);
     scene.add(hemisphere);
-    const sun = new THREE.DirectionalLight("#ffd6a0", 3.7);
-    sun.position.set(13, 10, -9);
+    const sun = new THREE.DirectionalLight("#fff0d3", 2.25);
+    sun.position.set(11, 12, 8);
     sun.castShadow = true;
-    const shadowResolution = window.innerWidth < 820 ? 1024 : 1536;
+    const shadowResolution = window.innerWidth < 820 ? 1536 : 2048;
     sun.shadow.mapSize.set(shadowResolution, shadowResolution);
     sun.shadow.camera.left = -11;
     sun.shadow.camera.right = 11;
@@ -1443,7 +1486,7 @@ function RealPergolaViewer({
     sun.shadow.normalBias = 0.018;
     sun.shadow.radius = 4;
     scene.add(sun);
-    const rim = new THREE.DirectionalLight("#d6e7ee", 0.72);
+    const rim = new THREE.DirectionalLight("#dbe8ec", 0.48);
     rim.position.set(-9, 6, 11);
     scene.add(rim);
     const warmLight = new THREE.PointLight("#ffbc73", 0, 14, 1.8);
@@ -1465,7 +1508,7 @@ function RealPergolaViewer({
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();
       if (!bounds.width || !bounds.height) return;
-      const pixelRatioLimit = window.innerWidth < 820 ? 1.15 : 1.35;
+      const pixelRatioLimit = window.innerWidth < 820 ? 1.5 : 2;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelRatioLimit));
       renderer.setSize(bounds.width, bounds.height, false);
       camera.aspect = bounds.width / bounds.height;
@@ -1492,6 +1535,7 @@ function RealPergolaViewer({
       const state = liveStateRef.current;
       if (state.yardVisible) loadPanorama(state.theme);
       furniture.visible = state.furnished;
+      realWorldContext.visible = state.yardVisible;
       const targetColor = new THREE.Color(state.finish);
       aluminum.color.lerp(targetColor, 0.09);
       louverMaterial.color.lerp(targetColor.clone().offsetHSL(0, 0, -0.025), 0.09);
@@ -1515,28 +1559,28 @@ function RealPergolaViewer({
       const duskMix = state.dusk ? 1 : 0;
       const activePanorama = panoramaTextures[state.theme];
       const activeEnvironment = panoramaEnvironments[state.theme];
-      const panoramaRotation = state.theme === "desert" ? 0.08 : 3.2;
+      const panoramaRotation = Math.PI;
       scene.backgroundRotation.y = THREE.MathUtils.lerp(scene.backgroundRotation.y, panoramaRotation, 0.08);
       scene.environmentRotation.y = THREE.MathUtils.lerp(scene.environmentRotation.y, panoramaRotation, 0.08);
       scene.background = state.yardVisible && activePanorama ? activePanorama : studioSky;
       scene.environment = state.yardVisible && activeEnvironment ? activeEnvironment : physicalEnvironment;
-      scene.backgroundIntensity = THREE.MathUtils.lerp(scene.backgroundIntensity, state.dusk ? 0.38 : 0.94, 0.06);
-      scene.environmentIntensity = THREE.MathUtils.lerp(scene.environmentIntensity, state.dusk ? 0.34 : 0.86, 0.06);
+      scene.backgroundIntensity = THREE.MathUtils.lerp(scene.backgroundIntensity, state.dusk ? 0.58 : 0.9, 0.06);
+      scene.environmentIntensity = THREE.MathUtils.lerp(scene.environmentIntensity, state.dusk ? 0.48 : 0.72, 0.06);
       deck.material = state.yardVisible ? patioMaterial : deckMaterial;
-      patioMaterial.color.lerp(new THREE.Color(state.theme === "desert" ? "#fff0d7" : "#fff9ed"), 0.05);
-      sun.color.lerp(new THREE.Color(state.theme === "desert" ? "#ffc982" : "#ffd6a0"), 0.05);
-      hemisphere.color.lerp(new THREE.Color(state.theme === "desert" ? "#fff0d4" : "#fff5df"), 0.05);
-      hemisphere.groundColor.lerp(new THREE.Color(state.theme === "desert" ? "#8b6650" : "#6b655c"), 0.05);
-      renderer.toneMappingExposure = THREE.MathUtils.lerp(renderer.toneMappingExposure, state.dusk ? 0.68 : 1.02, 0.06);
-      hemisphere.intensity = THREE.MathUtils.lerp(hemisphere.intensity, state.dusk ? 0.42 : 1.48, 0.07);
-      sun.intensity = THREE.MathUtils.lerp(sun.intensity, state.dusk ? 0.16 : 3.7, 0.07);
-      rim.intensity = THREE.MathUtils.lerp(rim.intensity, state.dusk ? 0.22 : 0.72, 0.07);
-      warmLight.intensity = THREE.MathUtils.lerp(warmLight.intensity, state.dusk ? 8 : 0, 0.07);
-      ledMaterial.emissiveIntensity = THREE.MathUtils.lerp(ledMaterial.emissiveIntensity, state.dusk ? 5.5 : 0.08, 0.1);
-      glowMaterial.opacity = THREE.MathUtils.lerp(glowMaterial.opacity, state.dusk ? 0.28 : 0, 0.09);
+      patioMaterial.color.lerp(new THREE.Color(state.theme === "desert" ? "#e4d6c3" : "#dfddd5"), 0.05);
+      sun.color.lerp(new THREE.Color(state.theme === "desert" ? "#ffe1b7" : "#fff0d3"), 0.05);
+      hemisphere.color.lerp(new THREE.Color(state.theme === "desert" ? "#fff2df" : "#f7f8f4"), 0.05);
+      hemisphere.groundColor.lerp(new THREE.Color(state.theme === "desert" ? "#75685e" : "#6f746d"), 0.05);
+      renderer.toneMappingExposure = THREE.MathUtils.lerp(renderer.toneMappingExposure, state.dusk ? 0.8 : 0.9, 0.06);
+      hemisphere.intensity = THREE.MathUtils.lerp(hemisphere.intensity, state.dusk ? 0.62 : 1.08, 0.07);
+      sun.intensity = THREE.MathUtils.lerp(sun.intensity, state.dusk ? 0.28 : 2.25, 0.07);
+      rim.intensity = THREE.MathUtils.lerp(rim.intensity, state.dusk ? 0.32 : 0.48, 0.07);
+      warmLight.intensity = THREE.MathUtils.lerp(warmLight.intensity, state.dusk ? 3.2 : 0, 0.07);
+      ledMaterial.emissiveIntensity = THREE.MathUtils.lerp(ledMaterial.emissiveIntensity, state.dusk ? 3.1 : 0.08, 0.1);
+      glowMaterial.opacity = THREE.MathUtils.lerp(glowMaterial.opacity, state.dusk ? 0.14 : 0, 0.09);
       contactShadowMaterial.opacity = THREE.MathUtils.lerp(contactShadowMaterial.opacity, state.dusk ? 0.1 : 0.16, 0.08);
       screenMaterial.opacity = THREE.MathUtils.lerp(screenMaterial.opacity, state.dusk ? 0.7 : 0.62, 0.08);
-      for (const light of pergolaLights) light.intensity = THREE.MathUtils.lerp(light.intensity, duskMix * 13, 0.09);
+      for (const light of pergolaLights) light.intensity = THREE.MathUtils.lerp(light.intensity, duskMix * 4.2, 0.09);
 
       controls.update(delta);
       renderer.render(scene, camera);
