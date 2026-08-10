@@ -202,10 +202,11 @@ const viewerFootprints = [
 function viewerCameraPreset(sizeIndex: number) {
   const footprint = viewerFootprints[sizeIndex] ?? viewerFootprints[0];
   const extent = Math.max(footprint.width, footprint.depth);
-  const distance = extent * 1.56;
+  const framingMultiplier = sizeIndex === 3 ? 1.95 : sizeIndex === 2 ? 1.76 : 1.65;
+  const distance = extent * framingMultiplier;
   return {
-    position: new THREE.Vector3(distance * 0.62, 2 + extent * 0.3, distance * 0.82),
-    target: new THREE.Vector3(0, 1.42, -0.12),
+    position: new THREE.Vector3(distance * 0.68, 1.82 + Math.max(0, extent - 6) * 0.035, distance * 0.98),
+    target: new THREE.Vector3(0, 1.46, -0.18),
     extent,
   };
 }
@@ -793,8 +794,8 @@ function RealPergolaViewer({
     controls.enablePan = false;
     controls.minDistance = 7 + cameraPreset.extent * 0.2;
     controls.maxDistance = 19 + cameraPreset.extent * 0.8;
-    controls.minPolarAngle = 0.72;
-    controls.maxPolarAngle = 1.43;
+    controls.minPolarAngle = 1.02;
+    controls.maxPolarAngle = 1.54;
     controls.rotateSpeed = 0.62;
     controls.zoomSpeed = 0.72;
     controls.target.copy(cameraPreset.target);
@@ -830,6 +831,8 @@ function RealPergolaViewer({
       : "/";
     const panoramaTextures: Record<SceneTheme, THREE.Texture | null> = { garden: null, desert: null };
     const panoramaEnvironments: Record<SceneTheme, THREE.Texture | null> = { garden: null, desert: null };
+    const facadeTextures: Record<SceneTheme, THREE.Texture | null> = { garden: null, desert: null };
+    const facadePanelTextures: Record<SceneTheme, THREE.Texture[] | null> = { garden: null, desert: null };
     const panoramaLoading: Record<SceneTheme, boolean> = { garden: false, desert: false };
     let panoramaLoaded = false;
     let disposed = false;
@@ -849,8 +852,35 @@ function RealPergolaViewer({
           }
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.mapping = THREE.EquirectangularReflectionMapping;
+          texture.magFilter = THREE.LinearFilter;
+          texture.minFilter = THREE.LinearMipmapLinearFilter;
+          texture.generateMipmaps = true;
           texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
           panoramaTextures[sceneTheme] = texture;
+          const facadeTexture = texture.clone();
+          facadeTexture.mapping = THREE.UVMapping;
+          facadeTexture.colorSpace = THREE.SRGBColorSpace;
+          facadeTexture.magFilter = THREE.LinearFilter;
+          facadeTexture.minFilter = THREE.LinearMipmapLinearFilter;
+          facadeTexture.generateMipmaps = true;
+          facadeTexture.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
+          facadeTexture.needsUpdate = true;
+          facadeTextures[sceneTheme] = facadeTexture;
+          facadePanelTextures[sceneTheme] = [0.125, 0.625, 0.875].map((offsetX) => {
+            const panelTexture = texture.clone();
+            panelTexture.mapping = THREE.UVMapping;
+            panelTexture.colorSpace = THREE.SRGBColorSpace;
+            panelTexture.wrapS = THREE.RepeatWrapping;
+            panelTexture.wrapT = THREE.ClampToEdgeWrapping;
+            panelTexture.repeat.set(0.25, 0.5);
+            panelTexture.offset.set(offsetX, 0.25);
+            panelTexture.magFilter = THREE.LinearFilter;
+            panelTexture.minFilter = THREE.LinearMipmapLinearFilter;
+            panelTexture.generateMipmaps = true;
+            panelTexture.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
+            panelTexture.needsUpdate = true;
+            return panelTexture;
+          });
           panoramaEnvironments[sceneTheme] = pmremGenerator.fromEquirectangular(texture).texture;
           panoramaLoading[sceneTheme] = false;
           if (liveStateRef.current.yardVisible && liveStateRef.current.theme === sceneTheme) {
@@ -867,7 +897,6 @@ function RealPergolaViewer({
         },
       );
     };
-    loadPanorama(liveStateRef.current.theme);
 
     const woodCanvas = document.createElement("canvas");
     woodCanvas.width = 2048;
@@ -970,7 +999,7 @@ function RealPergolaViewer({
     stoneTexture.colorSpace = THREE.SRGBColorSpace;
     stoneTexture.wrapS = THREE.RepeatWrapping;
     stoneTexture.wrapT = THREE.RepeatWrapping;
-    stoneTexture.repeat.set(5.5, 5.5);
+    stoneTexture.repeat.set(9, 9);
     stoneTexture.anisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
     const stoneBumpTexture = new THREE.CanvasTexture(stoneBumpCanvas);
     stoneBumpTexture.wrapS = THREE.RepeatWrapping;
@@ -1053,7 +1082,7 @@ function RealPergolaViewer({
       map: stoneTexture,
       bumpMap: stoneBumpTexture,
       bumpScale: 0.018,
-      color: "#e5dfd3",
+      color: "#c7c4bd",
       metalness: 0.01,
       roughness: 0.86,
       clearcoat: 0.025,
@@ -1137,34 +1166,52 @@ function RealPergolaViewer({
     const halfWidth = footprint.width / 2;
     const halfDepth = footprint.depth / 2;
     const deck: THREE.Mesh<THREE.BufferGeometry, THREE.Material> = new THREE.Mesh(
-      new RoundedBoxGeometry(footprint.width + 5.4, 0.09, footprint.depth + 5.1, 4, 0.08),
+      new THREE.PlaneGeometry(60, 60, 1, 1),
       patioMaterial,
     );
-    deck.position.y = -0.068;
+    deck.rotation.x = -Math.PI / 2;
+    deck.position.set(0, -0.02, -3.5);
     deck.receiveShadow = true;
     scene.add(deck);
-
-    const shadowCatcher = new THREE.Mesh(
-      new THREE.CircleGeometry(42, 96),
-      new THREE.ShadowMaterial({ color: "#132019", opacity: 0.075 }),
-    );
-    shadowCatcher.rotation.x = -Math.PI / 2;
-    shadowCatcher.position.y = -0.116;
-    shadowCatcher.receiveShadow = true;
-    scene.add(shadowCatcher);
 
     const realWorldContext = new THREE.Group();
     realWorldContext.name = "real-world-house-context";
     scene.add(realWorldContext);
-    const threshold = addBox(
-      realWorldContext,
-      [footprint.width + 4.2, 0.12, 0.58],
-      [0, -0.005, -(halfDepth + 2.05)],
-      patioMaterial,
-      false,
-      true,
+    const facadeMaterial = new THREE.MeshBasicMaterial({
+      color: "#f4f2ed",
+      toneMapped: true,
+      side: THREE.FrontSide,
+    });
+    const facadeBackdrop = new THREE.Mesh(
+      new THREE.PlaneGeometry(120, 60),
+      facadeMaterial,
     );
-    threshold.rotation.x = -0.008;
+    facadeBackdrop.position.set(0, 1.65, -(halfDepth + 20));
+    facadeBackdrop.rotation.y = 0.2;
+    facadeBackdrop.receiveShadow = false;
+    facadeBackdrop.renderOrder = -2;
+    facadeBackdrop.visible = false;
+    realWorldContext.add(facadeBackdrop);
+    const environmentWallDistance = 35;
+    const facadePanelMaterials = [0, 1, 2].map(() => new THREE.MeshBasicMaterial({
+      color: "#f4f2ed",
+      toneMapped: true,
+      side: THREE.DoubleSide,
+    }));
+    const facadePanels = [
+      { position: [-environmentWallDistance, 1.65, 0] as const, rotationY: Math.PI / 2 },
+      { position: [environmentWallDistance, 1.65, 0] as const, rotationY: -Math.PI / 2 },
+      { position: [0, 1.65, environmentWallDistance] as const, rotationY: Math.PI },
+    ].map((panel, index) => {
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(120, 60), facadePanelMaterials[index]);
+      mesh.position.set(...panel.position);
+      mesh.rotation.y = panel.rotationY;
+      mesh.renderOrder = -3;
+      mesh.visible = false;
+      realWorldContext.add(mesh);
+      return mesh;
+    });
+    loadPanorama(liveStateRef.current.theme);
 
     const innerWidth = footprint.width - 0.18;
     const innerDepth = footprint.depth - 0.3;
@@ -1489,6 +1536,9 @@ function RealPergolaViewer({
     const rim = new THREE.DirectionalLight("#dbe8ec", 0.48);
     rim.position.set(-9, 6, 11);
     scene.add(rim);
+    const cameraFill = new THREE.DirectionalLight("#f4f1e9", 0.58);
+    cameraFill.position.copy(camera.position);
+    scene.add(cameraFill);
     const warmLight = new THREE.PointLight("#ffbc73", 0, 14, 1.8);
     warmLight.position.set(3.9, 2.25, -4.9);
     scene.add(warmLight);
@@ -1559,6 +1609,34 @@ function RealPergolaViewer({
       const duskMix = state.dusk ? 1 : 0;
       const activePanorama = panoramaTextures[state.theme];
       const activeEnvironment = panoramaEnvironments[state.theme];
+      const activeFacade = facadeTextures[state.theme];
+      const activeFacadePanels = facadePanelTextures[state.theme];
+      if (facadeMaterial.map !== activeFacade) {
+        facadeMaterial.map = activeFacade;
+        facadeMaterial.needsUpdate = true;
+      }
+      facadeBackdrop.visible = false;
+      facadeMaterial.color.lerp(new THREE.Color(state.dusk ? "#77746f" : "#ffffff"), 0.06);
+      for (let index = 0; index < facadePanelMaterials.length; index += 1) {
+        const panelMaterial = facadePanelMaterials[index];
+        const panelTexture = activeFacadePanels?.[index] ?? null;
+        if (panelMaterial.map !== panelTexture) {
+          panelMaterial.map = panelTexture;
+          panelMaterial.needsUpdate = true;
+        }
+        panelMaterial.color.lerp(new THREE.Color(state.dusk ? "#77746f" : "#ffffff"), 0.06);
+        facadePanels[index].visible = false;
+      }
+      if (state.yardVisible) {
+        const azimuth = controls.getAzimuthalAngle();
+        const depthAxis = Math.cos(azimuth);
+        const sideAxis = Math.sin(azimuth);
+        if (Math.abs(depthAxis) >= Math.abs(sideAxis)) {
+          if (depthAxis >= 0) facadeBackdrop.visible = !!activeFacade;
+          else facadePanels[2].visible = !!activeFacadePanels?.[2];
+        } else if (sideAxis >= 0) facadePanels[1].visible = !!activeFacadePanels?.[1];
+        else facadePanels[0].visible = !!activeFacadePanels?.[0];
+      }
       const panoramaRotation = Math.PI;
       scene.backgroundRotation.y = THREE.MathUtils.lerp(scene.backgroundRotation.y, panoramaRotation, 0.08);
       scene.environmentRotation.y = THREE.MathUtils.lerp(scene.environmentRotation.y, panoramaRotation, 0.08);
@@ -1567,7 +1645,7 @@ function RealPergolaViewer({
       scene.backgroundIntensity = THREE.MathUtils.lerp(scene.backgroundIntensity, state.dusk ? 0.58 : 0.9, 0.06);
       scene.environmentIntensity = THREE.MathUtils.lerp(scene.environmentIntensity, state.dusk ? 0.48 : 0.72, 0.06);
       deck.material = state.yardVisible ? patioMaterial : deckMaterial;
-      patioMaterial.color.lerp(new THREE.Color(state.theme === "desert" ? "#e4d6c3" : "#dfddd5"), 0.05);
+      patioMaterial.color.lerp(new THREE.Color(state.theme === "desert" ? "#cbb99f" : "#c0bfb9"), 0.05);
       sun.color.lerp(new THREE.Color(state.theme === "desert" ? "#ffe1b7" : "#fff0d3"), 0.05);
       hemisphere.color.lerp(new THREE.Color(state.theme === "desert" ? "#fff2df" : "#f7f8f4"), 0.05);
       hemisphere.groundColor.lerp(new THREE.Color(state.theme === "desert" ? "#75685e" : "#6f746d"), 0.05);
@@ -1575,6 +1653,8 @@ function RealPergolaViewer({
       hemisphere.intensity = THREE.MathUtils.lerp(hemisphere.intensity, state.dusk ? 0.62 : 1.08, 0.07);
       sun.intensity = THREE.MathUtils.lerp(sun.intensity, state.dusk ? 0.28 : 2.25, 0.07);
       rim.intensity = THREE.MathUtils.lerp(rim.intensity, state.dusk ? 0.32 : 0.48, 0.07);
+      cameraFill.position.lerp(camera.position, 0.18);
+      cameraFill.intensity = THREE.MathUtils.lerp(cameraFill.intensity, state.dusk ? 0.24 : 0.58, 0.07);
       warmLight.intensity = THREE.MathUtils.lerp(warmLight.intensity, state.dusk ? 3.2 : 0, 0.07);
       ledMaterial.emissiveIntensity = THREE.MathUtils.lerp(ledMaterial.emissiveIntensity, state.dusk ? 3.1 : 0.08, 0.1);
       glowMaterial.opacity = THREE.MathUtils.lerp(glowMaterial.opacity, state.dusk ? 0.14 : 0, 0.09);
@@ -1619,6 +1699,8 @@ function RealPergolaViewer({
       for (const sceneTheme of ["garden", "desert"] as const) {
         panoramaTextures[sceneTheme]?.dispose();
         panoramaEnvironments[sceneTheme]?.dispose();
+        facadeTextures[sceneTheme]?.dispose();
+        facadePanelTextures[sceneTheme]?.forEach((texture) => texture.dispose());
       }
       brandTexture.dispose();
       physicalEnvironment.dispose();
@@ -1657,7 +1739,7 @@ function RealPergolaViewer({
         <span><b>View in your space</b><small>iPhone + Android native AR</small></span>
         <em>↗</em>
       </a>
-      <div className="viewer-badge">Photo-matched 360° environment</div>
+      <div className="viewer-badge">Ground-locked real-world POV</div>
     </div>
   );
 }
