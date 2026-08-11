@@ -44,7 +44,7 @@ const worker = {
     if (cacheablePage && typeof caches !== "undefined" && "default" in caches) {
       const edgeCache = (caches as CacheStorage & { default: Cache }).default;
       const cacheUrl = new URL(request.url);
-      cacheUrl.searchParams.set("__coordinatez_release", "v7-true-4k-pov-20260810");
+      cacheUrl.searchParams.set("__coordinatez_release", "v8-ground-blend-20260811");
       const cacheKey = new Request(cacheUrl, request);
       const cached = await edgeCache.match(cacheKey);
       if (cached) {

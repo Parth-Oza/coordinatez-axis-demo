@@ -966,6 +966,30 @@ function RealPergolaViewer({
     stoneBumpTexture.wrapT = THREE.RepeatWrapping;
     stoneBumpTexture.repeat.copy(stoneTexture.repeat);
 
+    // Keep the real-time patio fully present beneath the pergola while softly
+    // compositing its distant edges into the photographed house patio. A hard
+    // rectangular plane edge reads like a detached platform as soon as the
+    // camera moves; the long radial falloff keeps every view ground-locked.
+    const patioBlendCanvas = document.createElement("canvas");
+    patioBlendCanvas.width = 1024;
+    patioBlendCanvas.height = 1024;
+    const patioBlendContext = patioBlendCanvas.getContext("2d");
+    if (patioBlendContext) {
+      const patioBlend = patioBlendContext.createRadialGradient(512, 512, 184, 512, 512, 510);
+      patioBlend.addColorStop(0, "#ffffff");
+      patioBlend.addColorStop(0.38, "#ffffff");
+      patioBlend.addColorStop(0.58, "#dedede");
+      patioBlend.addColorStop(0.76, "#8d8d8d");
+      patioBlend.addColorStop(0.9, "#292929");
+      patioBlend.addColorStop(1, "#000000");
+      patioBlendContext.fillStyle = patioBlend;
+      patioBlendContext.fillRect(0, 0, 1024, 1024);
+    }
+    const patioBlendTexture = new THREE.CanvasTexture(patioBlendCanvas);
+    patioBlendTexture.magFilter = THREE.LinearFilter;
+    patioBlendTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    patioBlendTexture.generateMipmaps = true;
+
     const finishRoughnessCanvas = document.createElement("canvas");
     finishRoughnessCanvas.width = 512;
     finishRoughnessCanvas.height = 512;
@@ -1040,6 +1064,7 @@ function RealPergolaViewer({
     const deckMaterial = new THREE.MeshStandardMaterial({ map: woodTexture, color: "#ffffff", roughness: 0.72, metalness: 0.03 });
     const patioMaterial = new THREE.MeshPhysicalMaterial({
       map: stoneTexture,
+      alphaMap: patioBlendTexture,
       bumpMap: stoneBumpTexture,
       bumpScale: 0.01,
       color: "#f3f1ed",
@@ -1047,6 +1072,9 @@ function RealPergolaViewer({
       roughness: 0.86,
       clearcoat: 0.025,
       clearcoatRoughness: 0.72,
+      transparent: true,
+      alphaTest: 0.012,
+      depthWrite: true,
     });
     const ledMaterial = new THREE.MeshStandardMaterial({ color: "#f2ead8", emissive: "#ffd59a", emissiveIntensity: 0.08, roughness: 0.3 });
     const glowCanvas = document.createElement("canvas");
@@ -1130,7 +1158,7 @@ function RealPergolaViewer({
       patioMaterial,
     );
     deck.rotation.x = -Math.PI / 2;
-    deck.position.set(0, -0.02, -3.5);
+    deck.position.set(0, -0.02, 0);
     deck.receiveShadow = true;
     scene.add(deck);
     loadPanorama(liveStateRef.current.theme);
@@ -1598,6 +1626,7 @@ function RealPergolaViewer({
       woodTexture.dispose();
       stoneTexture.dispose();
       stoneBumpTexture.dispose();
+      patioBlendTexture.dispose();
       finishRoughnessTexture.dispose();
       screenTexture.dispose();
       glowTexture.dispose();
